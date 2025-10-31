@@ -1,0 +1,503 @@
+/* Progress bars for HP/XP/Quest */
+.bar-wrap{margin:6px 0;}
+.bar-label{font-size:12px;color:var(--muted);margin-bottom:2px;}
+.bar-outer{width:100%;height:16px;background:rgba(255,255,255,0.08);border-radius:8px;overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,0.12);}
+.bar-inner{height:100%;background:linear-gradient(90deg,var(--accent),#1976a5);border-radius:8px;transition:width 0.3s;}
+
+/* Quest Tracker Sidebar */
+.quest-tracker{
+	background: linear-gradient(135deg, rgba(255,255,255,0.03), rgba(255,255,255,0.01));
+	backdrop-filter:blur(10px);
+	position:sticky;
+	top:18px;
+	max-height:calc(100vh - 120px);
+	overflow-y:auto;
+	margin-bottom:18px;
+	scrollbar-width:thin;
+	scrollbar-color: rgba(79,195,247,0.3) rgba(255,255,255,0.05);
+	/* Enhanced backdrop for quest tracker visibility */
+	background: linear-gradient(135deg, rgba(0,0,0,0.4), rgba(0,0,0,0.3));
+}
+.quest-tracker::-webkit-scrollbar{width:6px;}
+.quest-tracker::-webkit-scrollbar-track{background:rgba(255,255,255,0.05);border-radius:3px;}
+.quest-tracker::-webkit-scrollbar-thumb{background:rgba(79,195,247,0.3);border-radius:3px;}
+
+.quest-tracker h2{
+	margin:0 0 12px 0;
+	font-size:16px;
+	color:var(--accent);
+	text-transform:uppercase;
+	letter-spacing:0.5px;
+	text-shadow: 0 2px 4px rgba(0,0,0,0.8);
+}
+.quest-tracker .help{
+	font-size:11px;
+	color:var(--muted);
+	text-align:center;
+	margin-top:8px;
+	opacity:0.6;
+}
+
+.quest-item{
+	background: rgba(255,255,255,0.02);
+	border:1px solid rgba(255,255,255,0.06);
+	border-radius:8px;
+	padding:10px;
+	margin-bottom:10px;
+	cursor:pointer;
+	transition: all 0.2s;
+	position:relative;
+	/* Darker backdrop for better text readability */
+	background: rgba(0,0,0,0.3);
+	backdrop-filter: blur(4px);
+}
+.quest-item:hover{
+	background: rgba(79,195,247,0.08);
+	border-color: rgba(79,195,247,0.3);
+	transform:translateX(-2px);
+}
+.quest-item.complete{
+	border-color: rgba(255,215,0,0.5);
+	box-shadow: 0 0 12px rgba(255,215,0,0.3);
+	animation: goldGlow 1.5s ease-in-out infinite;
+}
+.quest-item.pinged{
+	animation: questPing 0.5s ease-out;
+}
+
+@keyframes goldGlow{
+	0%, 100%{box-shadow: 0 0 12px rgba(255,215,0,0.3);}
+	50%{box-shadow: 0 0 20px rgba(255,215,0,0.5);}
+}
+@keyframes questPing{
+	0%{transform:scale(1);}
+	50%{transform:scale(1.05);background:rgba(79,195,247,0.15);}
+	100%{transform:scale(1);}
+}
+
+.quest-item-title{
+	font-size:13px;
+	font-weight:600;
+	color:#e6eef8;
+	margin-bottom:4px;
+	text-shadow: 0 1px 3px rgba(0,0,0,0.8);
+}
+.quest-item-desc{
+	font-size:11px;
+	color:var(--muted);
+	margin-bottom:6px;
+	line-height:1.3;
+	text-shadow: 0 1px 2px rgba(0,0,0,0.7);
+}
+.quest-item-progress{
+	font-size:11px;
+	color:var(--accent);
+	font-weight:500;
+	text-shadow: 0 1px 2px rgba(0,0,0,0.8);
+}
+
+.quest-item .bar-outer{height:8px;margin-top:4px;}
+.quest-item .bar-inner{background:linear-gradient(90deg,#4fc3f7,#81d4fa);}
+.quest-item.complete .bar-inner{background:linear-gradient(90deg,#ffd700,#ffed4e);}
+
+@media(max-width:480px){
+	.bar-outer{height:12px;}
+}
+:root{
+	--bg-1: #071028;
+	--bg-2: #052033;
+	--card: rgba(255,255,255,0.03);
+	--accent: #4fc3f7;
+	--muted: #9fb1c9;
+	--glass-border: rgba(255,255,255,0.06);
+}
+
+*{box-sizing:border-box;font-family:Inter, 'Segoe UI', Roboto, Arial, sans-serif}
+html,body{height:100%;}
+body{
+	margin:0;
+	background: radial-gradient(1200px 600px at 10% 10%, rgba(79,195,247,0.06), transparent), linear-gradient(180deg,var(--bg-1),var(--bg-2));
+	color:#e6eef8;
+	-webkit-font-smoothing:antialiased;
+	/* Improved text readability across all backgrounds */
+	text-shadow: 0 1px 3px rgba(0,0,0,0.5);
+}
+
+header{
+	background: linear-gradient(90deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));
+	padding:18px 20px;
+	border-bottom:1px solid rgba(255,255,255,0.03);
+}
+header h1{margin:0;font-size:20px;letter-spacing:0.2px;text-shadow: 0 2px 4px rgba(0,0,0,0.6)}
+
+main{display:grid;grid-template-columns:320px 1fr;gap:18px;padding:18px;max-width:1100px;margin:18px auto}
+#left{width:100%}
+#right{width:100%}
+
+.card{
+	background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));
+	padding:14px;border-radius:12px;border:1px solid var(--glass-border);
+	box-shadow: 0 6px 18px rgba(3,10,20,0.5);
+	/* Enhanced backdrop for better text contrast */
+	backdrop-filter: blur(8px);
+	background: linear-gradient(135deg, rgba(0,0,0,0.35), rgba(0,0,0,0.25));
+}
+
+.stat{margin:8px 0;font-size:14px;text-shadow: 0 1px 2px rgba(0,0,0,0.7)}
+.actions{display:flex;flex-wrap:wrap;gap:10px;margin-top:10px}
+
+.combat-actions h3{margin:0 0 8px 0;font-size:16px;color:var(--accent);}
+.in-combat #main-actions{display:none;}
+.in-combat #combat-actions{display:block;}
+
+/* Town state visibility */
+.in-town #main-actions{display:none;}
+.in-town #combat-actions{display:none;}
+.in-town #town-actions{display:flex;}
+.in-town #controls label{display:none;}
+
+button{
+	background:linear-gradient(180deg,var(--accent), #1976a5);
+	border:0;color:#042031;padding:10px 12px;border-radius:10px;cursor:pointer;font-weight:600;
+	transition:transform .08s ease, box-shadow .08s ease;
+	box-shadow: 0 4px 10px rgba(16,48,72,0.35);
+	/* Better text contrast on buttons */
+	text-shadow: 0 1px 2px rgba(0,0,0,0.3);
+}
+button:hover{transform:translateY(-2px)}
+button:active{transform:translateY(0)}
+button:disabled{opacity:0.5;cursor:default;box-shadow:none}
+
+#log-entries{height:420px;overflow:auto;background:linear-gradient(180deg, rgba(0,0,0,0.12), rgba(0,0,0,0.06));padding:12px;border-radius:8px;border:1px solid rgba(255,255,255,0.02);
+	/* Stronger background for log readability */
+	background: linear-gradient(135deg, rgba(0,0,0,0.4), rgba(0,0,0,0.3));
+	backdrop-filter: blur(4px);
+}
+.log-line{margin:6px 0;font-size:13px;line-height:1.35;text-shadow: 0 1px 2px rgba(0,0,0,0.8)}
+
+/* exciting feedback classes */
+.log-critical{color:#ffeb3b;font-weight:800;text-shadow:0 0 8px rgba(255,235,59,0.6)}
+.log-dodge{color:#80deea;font-weight:700}
+
+/* level up flash on the whole status card */
+.levelup-flash{animation:levelup 1200ms ease-in-out}
+@keyframes levelup{
+	0%{box-shadow:0 0 0 rgba(79,195,247,0), 0 0 0 rgba(255,215,64,0)}
+	30%{box-shadow:0 0 22px rgba(79,195,247,0.9), 0 0 44px rgba(255,215,64,0.5)}
+	60%{box-shadow:0 0 12px rgba(79,195,247,0.6), 0 0 24px rgba(255,215,64,0.3)}
+	100%{box-shadow:0 0 0 rgba(79,195,247,0), 0 0 0 rgba(255,215,64,0)}
+}
+
+/* visual feedback */
+.flash-red{animation:flash-red 700ms ease-in-out}
+.glow-xp{box-shadow:0 0 18px rgba(79,195,247,0.9), 0 0 36px rgba(79,195,247,0.4); transition: box-shadow 400ms}
+.new-badge{background:var(--accent);color:#042031;padding:6px 8px;border-radius:999px;font-weight:700}
+
+@keyframes flash-red{0%{background:rgba(255,0,0,0.15)}50%{background:rgba(255,0,0,0.30)}100%{background:transparent}}
+
+#quest-list,#inventory-list{list-style:none;padding:0;margin:0;display:block}
+#quest-list li{padding:10px 12px;border-radius:10px;margin:8px 0;background:linear-gradient(180deg, rgba(10,30,44,0.6), rgba(6,22,33,0.6));display:flex;align-items:center;justify-content:space-between}
+
+/* inventory grid */
+#inventory-list{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px}
+#inventory-list li{background:linear-gradient(180deg, rgba(8,22,34,0.6), rgba(3,14,24,0.5));padding:10px;border-radius:10px;display:flex;flex-direction:column;gap:8px}
+#inventory-list li button{padding:8px;font-size:13px;border-radius:8px}
+
+.help{font-size:13px;color:var(--muted);margin-top:8px;text-shadow: 0 1px 2px rgba(0,0,0,0.7)}
+
+footer{padding:12px 16px;color:var(--muted);text-align:center;text-shadow: 0 1px 2px rgba(0,0,0,0.8)}
+
+/* responsive adjustments */
+@media(max-width:1000px){
+	main{grid-template-columns:1fr;padding:12px;margin:12px}
+	#log-entries{height:320px}
+}
+
+@media(max-width:480px){
+	header h1{font-size:18px}
+	.stat{font-size:13px}
+	.actions{flex-direction:column}
+	button{width:100%;padding:12px;border-radius:12px}
+	#log-entries{height:240px}
+	#inventory-list{grid-template-columns:repeat(2,minmax(0,1fr))}
+	/* Make sticky sidebar behave like normal flow on small screens */
+	.quest-tracker{position:static; top:auto; max-height:none}
+	/* Slightly tighter cards for mobile */
+	.card{padding:12px}
+	/* Reduce combo text size on phones */
+	.combo-overlay .combo-text{font-size:36px}
+	/* Ensure achievement popup fits small screens */
+	.achievement-popup{right:12px; left:12px; min-width:auto; max-width:90vw}
+}
+
+/* Extra-small devices */
+@media(max-width:360px){
+	#inventory-list{grid-template-columns:1fr}
+	.log-line{font-size:12px}
+}
+
+@media (prefers-reduced-motion: reduce){
+	*{transition:none !important}
+}
+
+/* modal */
+.modal{position:fixed;inset:0;display:none;align-items:center;justify-content:center;z-index:60}
+.modal[aria-hidden="false"]{display:flex}
+.modal-backdrop{position:absolute;inset:0;background:linear-gradient(180deg,rgba(2,8,18,0.6),rgba(2,8,18,0.75));backdrop-filter:blur(4px)}
+.modal-panel{position:relative;max-width:720px;width:92%;z-index:70;padding:16px}
+.modal-header h3{margin:0 0 8px 0}
+.modal-body{max-height:60vh;overflow:auto;padding:6px}
+.modal-actions{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end;margin-top:12px}
+
+/* equipment slots */
+.equipment-slots{display:flex;gap:8px;flex-wrap:wrap}
+.equip-slot{min-width:120px;flex:1;display:flex;flex-direction:column;gap:6px;padding:10px;border-radius:10px;background:linear-gradient(180deg, rgba(6,18,28,0.5), rgba(3,12,20,0.45));align-items:flex-start}
+.equip-slot .slot-name{font-size:12px;color:var(--muted)}
+.equip-slot .slot-item{font-weight:700}
+
+.count-badge{background:rgba(255,255,255,0.06);padding:4px 8px;border-radius:999px;font-size:12px;color:var(--muted);margin-left:6px}
+
+/* Equipment Preview */
+.equip-preview{
+	margin:8px 0;
+	padding:8px;
+	border:1px dashed rgba(255,255,255,0.08);
+	border-radius:8px;
+	background: rgba(255,255,255,0.02);
+	font-size:12px;
+}
+.equip-preview .line{display:flex;gap:8px;align-items:center;margin:2px 0}
+.equip-preview .stat-name{min-width:48px;color:var(--muted)}
+.equip-preview .from{color:#cfd8dc}
+.equip-preview .arrow{opacity:0.6}
+.equip-preview .to{font-weight:600}
+.delta-pos{color:#7CFC73}
+.delta-neg{color:#ff7b7b}
+
+/* Animated Combat Log */
+.log-entries{max-height:260px; overflow:auto}
+.log-line{opacity:0; transform:translateY(6px); animation: logEnter 260ms ease forwards; padding:6px 8px; border-left:3px solid rgba(255,255,255,0.06); margin:2px 0; border-radius:6px; background:rgba(255,255,255,0.02)}
+.log-line.log-attack{border-left-color:#4fc3f7}
+.log-line.log-heal{border-left-color:#66bb6a}
+.log-line.log-gold{border-left-color:#ffd54f}
+.log-line.log-quest{border-left-color:#ba68c8}
+.log-line.log-loot{border-left-color:#81c784}
+.log-line.log-boss{border-left-color:#ef5350}
+.log-line.log-info{border-left-color:rgba(255,255,255,0.2)}
+@keyframes logEnter{to{opacity:1; transform:translateY(0)}}
+
+/* Combo Overlay */
+.combo-overlay{position:fixed; inset:0; display:flex; align-items:center; justify-content:center; pointer-events:none; z-index:90; opacity:0;}
+.combo-overlay.show{animation: comboPop 0.8s ease-out forwards}
+.combo-overlay .combo-text{font-size:52px; font-weight:900; letter-spacing:1px}
+.combo-overlay.tier-1 .combo-text{color:#4fc3f7; text-shadow:0 0 12px rgba(79,195,247,0.5)}
+.combo-overlay.tier-2 .combo-text{color:#ffd54f; text-shadow:0 0 16px rgba(255,213,79,0.7)}
+.combo-overlay.tier-3 .combo-text{color:#ff6f61; text-shadow:0 0 18px rgba(255,111,97,0.8)}
+@keyframes comboPop{0%{opacity:0; transform:scale(0.8)}40%{opacity:1; transform:scale(1.1)}100%{opacity:0; transform:scale(1)}}
+
+/* Screen shake for mega combos */
+.screen-shake{animation: shake 0.3s linear}
+@keyframes shake{0%{transform:translate(0)}25%{transform:translate(2px,-2px)}50%{transform:translate(-2px,2px)}75%{transform:translate(2px,2px)}100%{transform:translate(0)}}
+
+/* Achievement Popup */
+.achievement-popup{
+	position: fixed;
+	top: 20px;
+	right: 20px;
+	background: linear-gradient(135deg, rgba(255,215,0,0.15), rgba(255,193,7,0.1));
+	backdrop-filter: blur(12px);
+	border: 2px solid rgba(255,215,0,0.4);
+	border-radius: 12px;
+	padding: 16px;
+	display: flex;
+	gap: 12px;
+	align-items: center;
+	min-width: 300px;
+	max-width: 400px;
+	box-shadow: 0 8px 24px rgba(0,0,0,0.4), 0 0 40px rgba(255,215,0,0.2);
+	transform: translateX(450px);
+	opacity: 0;
+	transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+	z-index: 100;
+}
+.achievement-popup.show{
+	transform: translateX(0);
+	opacity: 1;
+	animation: achievementBounce 0.6s ease-out;
+}
+@keyframes achievementBounce{
+	0%{transform:translateX(450px) scale(0.8);}
+	60%{transform:translateX(-10px) scale(1.05);}
+	100%{transform:translateX(0) scale(1);}
+}
+.achievement-icon{
+	font-size: 48px;
+	line-height: 1;
+	filter: drop-shadow(0 2px 8px rgba(255,215,0,0.6));
+	animation: achievementGlow 2s ease-in-out infinite;
+}
+@keyframes achievementGlow{
+	0%, 100%{filter: drop-shadow(0 2px 8px rgba(255,215,0,0.6));}
+	50%{filter: drop-shadow(0 4px 16px rgba(255,215,0,0.9));}
+}
+.achievement-content{
+	flex: 1;
+}
+.achievement-title{
+	font-size: 12px;
+	text-transform: uppercase;
+	letter-spacing: 0.5px;
+	color: #ffd700;
+	font-weight: 700;
+	margin-bottom: 4px;
+}
+.achievement-name{
+	font-size: 16px;
+	font-weight: 700;
+	color: #ffffff;
+	margin-bottom: 4px;
+}
+.achievement-desc{
+	font-size: 12px;
+	color: var(--muted);
+	line-height: 1.3;
+	margin-bottom: 6px;
+}
+.achievement-reward{
+	font-size: 13px;
+	color: #4fc3f7;
+	font-weight: 600;
+}
+
+/* Achievement list styles */
+.achievement-grid{
+	display: grid;
+	grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+	gap: 12px;
+	margin-top: 12px;
+}
+.achievement-card{
+	background: rgba(255,255,255,0.02);
+	border: 1px solid rgba(255,255,255,0.06);
+	border-radius: 8px;
+	padding: 12px;
+	transition: all 0.2s;
+}
+.achievement-card.unlocked{
+	border-color: rgba(255,215,0,0.3);
+	background: rgba(255,215,0,0.05);
+}
+.achievement-card.locked{
+	opacity: 0.5;
+}
+.achievement-card:hover{
+	border-color: rgba(79,195,247,0.3);
+	transform: translateY(-2px);
+}
+.achievement-card-header{
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	margin-bottom: 8px;
+}
+.achievement-card-icon{
+	font-size: 32px;
+	line-height: 1;
+}
+.achievement-card.locked .achievement-card-icon{
+	filter: grayscale(1);
+	opacity: 0.4;
+}
+.achievement-card-info{
+	flex: 1;
+}
+.achievement-card-name{
+	font-size: 14px;
+	font-weight: 700;
+	color: #ffffff;
+	margin-bottom: 2px;
+}
+.achievement-card.locked .achievement-card-name{
+	color: var(--muted);
+}
+.achievement-card-desc{
+	font-size: 11px;
+	color: var(--muted);
+	line-height: 1.3;
+}
+.achievement-card-reward{
+	font-size: 12px;
+	color: #4fc3f7;
+	font-weight: 600;
+	margin-top: 6px;
+}
+
+/* Combo Overlay */
+.combo-overlay{
+	position: fixed;
+	top: 50%;
+	left: 50%;
+	transform: translate(-50%, -50%);
+	pointer-events: none;
+	z-index: 200;
+	opacity: 0;
+	transition: opacity 0.2s;
+}
+.combo-overlay.show{
+	opacity: 1;
+	animation: comboScale 0.5s ease-out;
+}
+@keyframes comboScale{
+	0%{transform: translate(-50%, -50%) scale(0.5);}
+	50%{transform: translate(-50%, -50%) scale(1.2);}
+	100%{transform: translate(-50%, -50%) scale(1);}
+}
+.combo-text{
+	font-size: 64px;
+	font-weight: 900;
+	text-align: center;
+	text-transform: uppercase;
+	letter-spacing: 2px;
+	text-shadow: 
+		0 0 20px rgba(255,255,255,0.8),
+		0 0 40px rgba(79,195,247,0.6),
+		0 4px 8px rgba(0,0,0,0.4);
+	color: #ffffff;
+}
+.combo-overlay.tier-1 .combo-text{
+	color: #4fc3f7;
+	text-shadow: 0 0 20px rgba(79,195,247,0.8), 0 0 40px rgba(79,195,247,0.6);
+}
+.combo-overlay.tier-2 .combo-text{
+	color: #ffd700;
+	text-shadow: 0 0 20px rgba(255,215,0,0.8), 0 0 40px rgba(255,215,0,0.6);
+	animation: comboScale 0.5s ease-out, comboPulse 0.5s ease-in-out;
+}
+.combo-overlay.tier-3 .combo-text{
+	color: #ff4444;
+	font-size: 80px;
+	text-shadow: 
+		0 0 30px rgba(255,68,68,0.9),
+		0 0 60px rgba(255,68,68,0.7),
+		0 6px 12px rgba(0,0,0,0.5);
+	animation: comboScale 0.5s ease-out, comboPulse 0.5s ease-in-out, comboShake 0.5s ease-in-out;
+}
+@keyframes comboPulse{
+	0%, 100%{filter: brightness(1);}
+	50%{filter: brightness(1.5);}
+}
+@keyframes comboShake{
+	0%, 100%{transform: translate(-50%, -50%);}
+	10%, 30%, 50%, 70%, 90%{transform: translate(-48%, -50%);}
+	20%, 40%, 60%, 80%{transform: translate(-52%, -50%);}
+}
+
+/* Screen shake effect for high combos */
+body.screen-shake{
+	animation: screenShake 0.3s ease-in-out;
+}
+@keyframes screenShake{
+	0%, 100%{transform: translate(0, 0);}
+	10%, 30%, 50%, 70%, 90%{transform: translate(-2px, 1px);}
+	20%, 40%, 60%, 80%{transform: translate(2px, -1px);}
+}
