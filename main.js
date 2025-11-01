@@ -2,6 +2,8 @@
 (() => {
   const MAX_FLOORS = 100;
   const SAVE_KEY = 'sao_text_demo_v1';
+  // Increment when the save schema meaningfully changes
+  const SAVE_VERSION = 2;
 
   // First 10 floor definitions (unique themes, enemies, bosses, and quests)
   const FLOOR_DEFS = {
@@ -136,7 +138,7 @@
       this.comboCount = 0;
       this.maxCombo = 0;
     }
-    nextXp(){ return 50 + Math.floor(50 * (this.level-1) * 1.2) }
+    nextXp(){ return 50 + Math.floor(60 * (this.level-1) * 1.3) }
     addXp(amount){
       this.xp += amount;
       let leveled = 0;
@@ -144,7 +146,8 @@
         this.xp -= this.nextXp();
         this.level++;
         this.pendingStatPoints = (this.pendingStatPoints || 0) + 2;
-        this.skillPoints = (this.skillPoints || 0) + 1;
+        // Award skill point every 3 levels (instead of every level)
+        if(this.level % 3 === 0) this.skillPoints = (this.skillPoints || 0) + 1;
         leveled++;
       }
       return leveled;
@@ -179,14 +182,47 @@
     }
   }
 
+  // Minimal, forward-only migration to ensure old saves load safely
+  function migrateSaveData(data){
+    try{
+      const migrated = Object.assign({}, data || {});
+      const v = Number.isFinite(migrated.version) ? migrated.version : 0;
+      // Ensure nested objects/arrays exist
+      migrated.player = migrated.player || {};
+      migrated.inventory = migrated.inventory || {items:[]};
+      migrated.quests = Array.isArray(migrated.quests) ? migrated.quests : (migrated.player.quests || []);
+      migrated.completedQuests = Array.isArray(migrated.completedQuests) ? migrated.completedQuests : (migrated.player.completedQuests || []);
+      migrated.stash = Array.isArray(migrated.stash) ? migrated.stash : (migrated.player.stash || []);
+      migrated.skillCooldowns = migrated.skillCooldowns || (migrated.player.skillCooldowns || {});
+      migrated.statusEffects = migrated.statusEffects || (migrated.player.statusEffects || []);
+      migrated.fieldProgress = migrated.fieldProgress || (migrated.player.fieldProgress || {});
+      migrated.dungeonProgress = migrated.dungeonProgress || (migrated.player.dungeonProgress || {});
+      migrated.clearedBosses = migrated.clearedBosses || (migrated.player.clearedBosses || []);
+      migrated.tokens = typeof migrated.tokens === 'number' ? migrated.tokens : (migrated.player.tokens || 0);
+      migrated.inTown = !!migrated.inTown;
+      migrated.autoExplore = !!migrated.autoExplore;
+      // Add currentFloor fallback
+      if(typeof migrated.currentFloor !== 'number'){
+        migrated.currentFloor = (migrated.player && typeof migrated.player.floor === 'number') ? migrated.player.floor : 1;
+      }
+      // Future migrations by version number can be handled here
+      migrated.version = SAVE_VERSION;
+      return migrated;
+    }catch(e){
+      // If anything goes wrong, fall back to a fresh scaffold
+      return {version:SAVE_VERSION, player:new Player().toJSON(), inventory:{items:[]}, quests:[], completedQuests:[], stash:[], skillCooldowns:{}, statusEffects:[], fieldProgress:{}, dungeonProgress:{}, clearedBosses:[], tokens:0, inTown:false, autoExplore:false, currentFloor:1};
+    }
+  }
+
   // Enemy factory
   function makeEnemy(floor, type='normal'){
     const def = FLOOR_DEFS[floor] || FLOOR_DEFS[1];
     let enemy;
     if(type === 'boss'){
       const b = def.boss;
+      // Increase boss HP scaling for difficulty
       enemy = {
-        name: b.name, hp: Math.floor(b.hpMul * 10), maxHP: Math.floor(b.hpMul * 10),
+        name: b.name, hp: Math.floor(b.hpMul * 12), maxHP: Math.floor(b.hpMul * 12),
         atk: b.atk, def: b.def, exp: b.exp, gold: b.gold, isBoss: true, id: b.id
       };
     } else {
@@ -358,7 +394,7 @@ class Game {
         const canSell = !it.equipped;
         // heuristic buy price for this item based on stats (used to compute sell price)
         const buyLike = ((it.atk||0)*30 + (it.def||0)*25 + (it.heal||0)*8) || 20;
-        const price = Math.max(1, Math.floor(buyLike / 4)); // sell for roughly 1/4 of buy-like price
+        const price = Math.max(1, Math.floor(buyLike / 5)); // sell for roughly 1/5 of buy-like price (reduced from 1/4)
         return `<div style="display:flex;justify-content:space-between;align-items:center;padding:6px"><div>${it.name} ${it.count && it.count>1?('x'+it.count):''}${it.equipped? ' (equipped)':''}</div><div>${canSell?`<button data-sell="${it.id}" data-price="${price}">Sell (${price}g)</button>`:'<span class="muted">Equipped</span>'}</div></div>`;
       }).join('') || '<div class="muted">No items to sell.</div>';
       const buyHtml = shopItems.map((it,i)=>{
@@ -371,11 +407,20 @@ class Game {
       const body = document.getElementById('modal-body');
       body.querySelectorAll('button[data-buy]').forEach(btn=> btn.addEventListener('click', ()=>{
         const idx = parseInt(btn.getAttribute('data-buy')); const price = parseInt(btn.getAttribute('data-price'));
-        const it = shopItems[idx]; if(this.player.gold < price){ this.logEvent('info','Not enough gold to buy.'); return; }
+        const it = shopItems[idx]; 
+        if(this.player.gold < price){ this.logEvent('info','Not enough gold to buy.'); return; }
+        // Prevent buying duplicate equipment by name
+        if(it.type === 'equipment'){
+          const hasSame = this.inventory.items.some(x=> x.type==='equipment' && x.name === it.name);
+          if(hasSame){ this.logEvent('info', `You already own ${it.name}.`); return; }
+        }
         this.player.gold -= price; const added = this.inventory.addItem(Object.assign({}, it)); this.logEvent('info', `Bought ${added.name} for ${price} gold.`); this.showInventoryBadge(); this.updateUI();
       }));
       body.querySelectorAll('button[data-sell]').forEach(btn=> btn.addEventListener('click', ()=>{
         const id = btn.getAttribute('data-sell'); const price = parseInt(btn.getAttribute('data-price'));
+        // Double-guard: prevent selling equipped items
+        const itm = this.inventory.getItem(id);
+        if(itm && itm.equipped){ this.logEvent('info','Unequip item before selling.'); return; }
         const removed = this.inventory.removeItem(id,1);
         if(removed){ this.player.gold += price; this.logEvent('gold', `Sold ${removed.name} for ${price} gold.`); this.updateUI(); }
       }));
@@ -398,7 +443,7 @@ class Game {
           // list equipped weapons only
           const weapons = this.inventory.items.filter(i=> i.type==='equipment' && (i.slot||'').toLowerCase() === 'weapon');
           const list = weapons.length ? weapons.map((it,i)=>{
-            const cost = 150 + (it.atk||0)*40; const material = 'Ingot'; const matCount = 1;
+            const cost = 200 + (it.atk||0)*60; const material = 'Ingot'; const matCount = 2;
             return `<div style="display:flex;justify-content:space-between;align-items:center;padding:6px"><div><strong>${it.name}</strong><div class="muted">ATK:${it.atk||0}${it.equipped? ' (equipped)':''}</div></div><div><button data-upgrade-w="${i}" data-cost="${cost}" data-mat="${material}" data-matcount="${matCount}">Upgrade (${cost}g + ${matCount} ${material})</button></div></div>`;
           }).join('') : '<div class="muted">No weapons available for upgrade.</div>';
           this.showModal('Upgrade Weapon', `<div style="display:flex;flex-direction:column;gap:8px">${list}</div>`, [{text:'Back', action:()=> this.showBlacksmithModal()},{text:'Close', action:()=> this.hideModal()}]);
@@ -417,6 +462,7 @@ class Game {
             this.inventory.removeItem(materialItem.id, matCount);
             this.player.gold -= cost;
             it.atk = (it.atk||0) + 1;
+            this.player.equipmentUpgrades = (this.player.equipmentUpgrades || 0) + 1; // Track for achievements
             this.logEvent('info', `Upgraded ${it.name}. ATK increased.`);
             this.hideModal(); this.updateUI();
           }));
@@ -424,7 +470,7 @@ class Game {
         if(act === 'fortify'){
           const armors = this.inventory.items.filter(i=> i.type==='equipment' && (i.slot||'').toLowerCase() === 'armor');
           const list = armors.length ? armors.map((it,i)=>{
-            const cost = 140 + (it.def||0)*35; const material = 'Ore'; const matCount = 1;
+            const cost = 180 + (it.def||0)*55; const material = 'Ore'; const matCount = 2;
             return `<div style="display:flex;justify-content:space-between;align-items:center;padding:6px"><div><strong>${it.name}</strong><div class="muted">DEF:${it.def||0}${it.equipped? ' (equipped)':''}</div></div><div><button data-fortify-a="${i}" data-cost="${cost}" data-mat="${material}" data-matcount="${matCount}">Fortify (${cost}g + ${matCount} ${material})</button></div></div>`;
           }).join('') : '<div class="muted">No armor available for fortify.</div>';
           this.showModal('Fortify Armor', `<div style="display:flex;flex-direction:column;gap:8px">${list}</div>`, [{text:'Back', action:()=> this.showBlacksmithModal()},{text:'Close', action:()=> this.hideModal()}]);
@@ -440,6 +486,7 @@ class Game {
             this.inventory.removeItem(materialItem.id, matCount);
             this.player.gold -= cost;
             it.def = (it.def||0) + 1;
+            this.player.equipmentUpgrades = (this.player.equipmentUpgrades || 0) + 1; // Track for achievements
             this.logEvent('info', `Fortified ${it.name}. DEF increased.`);
             this.hideModal(); this.updateUI();
           }));
@@ -1051,19 +1098,27 @@ class Game {
     }
     
       enterCombat(){
-        document.getElementById('main-actions').style.display = 'none';
-        document.getElementById('combat-actions').style.display = 'block';
+        const mainAct = document.getElementById('main-actions'); if(mainAct) mainAct.style.display = 'none';
+        const townAct = document.getElementById('town-actions'); if(townAct) townAct.style.display = 'none';
+        const combatAct = document.getElementById('combat-actions'); if(combatAct) combatAct.style.display = 'block';
         document.body.classList.add('in-combat');
+        // Disable non-combat controls while fighting
+        this.setNonCombatControlsDisabled(true);
+        // Start with player turn enabled
+        this.setCombatButtonsEnabled(true);
         this.playerTurn = true; // reset turn to player when combat starts
       }
     
       exitCombat(){
-        document.getElementById('main-actions').style.display = 'flex';
-        document.getElementById('combat-actions').style.display = 'none';
+        const mainAct = document.getElementById('main-actions'); if(mainAct) mainAct.style.display = 'flex';
+        const combatAct = document.getElementById('combat-actions'); if(combatAct) combatAct.style.display = 'none';
         document.body.classList.remove('in-combat');
         this.currentEnemy = null;
         this.busy = false;
         this.playerTurn = true; // reset for next combat
+        // Re-enable non-combat controls after fight
+        this.setNonCombatControlsDisabled(false);
+        this.setCombatButtonsEnabled(false);
         this.updateUI();
       }
     
@@ -1089,6 +1144,7 @@ class Game {
           for(let i=p.statusEffects.length-1;i>=0;i--){ if(p.statusEffects[i].type==='stun'){ p.statusEffects[i].turns--; if(p.statusEffects[i].turns<=0) p.statusEffects.splice(i,1); break; } }
           this.logEvent('info','You are stunned and cannot act this turn');
           this.playerTurn = false; // mark as not player turn
+          this.setCombatButtonsEnabled(false);
           return setTimeout(()=> this.enemyTurn(true), 400);
         }
         this.playerTurn = true; // it's now player's turn
@@ -1097,6 +1153,8 @@ class Game {
         Object.keys(p.skillCooldowns||{}).forEach(k=>{ if(p.skillCooldowns[k] > 0) p.skillCooldowns[k]--; });
         this.processPlayerStatusEffects();
         this.updateUI();
+        // Enable combat actions for the player
+        this.setCombatButtonsEnabled(true);
         // Combat actions are now available via buttons - wait for player input
     }
     
@@ -1303,6 +1361,7 @@ class Game {
     enemyTurn(freeAttack=false){
       const p = this.player; const enemy = this.currentEnemy; if(!enemy) return;
       this.playerTurn = false; // ensure player can't act during enemy turn
+        this.setCombatButtonsEnabled(false);
       // process enemy status effects (poison etc.) at start of its action
       this.processEnemyStatusEffects(enemy);
       // dodge/evasion check based on DEX
@@ -1392,7 +1451,7 @@ class Game {
       }
       // chance to drop a resource tied to enemy/floor
       const res = this.getResourceForEnemy(enemy);
-      const dropBase = 0.5 + (p.luck||0)*0.02 + (p.archetype==='sage' ? (ARCHETYPES.sage.passives.dropBonus || 0) : 0);
+      const dropBase = 0.35 + (p.luck||0)*0.02 + (p.archetype==='sage' ? (ARCHETYPES.sage.passives.dropBonus || 0) : 0);
       if(res && Math.random() < dropBase){
         const dropped = this.inventory.addItem({name:res,type:'resource'}, 1);
         this.logEvent('loot', `Found resource: ${dropped.name}`);
@@ -1571,7 +1630,7 @@ class Game {
       // Build HTML for active quests
       trackerList.innerHTML = '';
       
-      // Show completed quests with gold glow
+      // Show completed quests with gold glow (top priority)
       completed.forEach(cq => {
         const div = document.createElement('div');
         div.className = 'quest-item complete';
@@ -1588,8 +1647,9 @@ class Game {
         trackerList.appendChild(div);
       });
 
-      // Show active quests
-      p.quests.forEach(q => {
+      // Show only the first 3 active quests to avoid clutter
+      const activeQuests = p.quests.slice(0, 3);
+      activeQuests.forEach(q => {
         const prog = q.progress || 0;
         const pct = Math.min(100, Math.round((prog / q.target) * 100));
         const div = document.createElement('div');
@@ -1617,6 +1677,22 @@ class Game {
         });
         trackerList.appendChild(div);
       });
+
+      // If there are more than 3 active quests, show a hint
+      if(p.quests.length > 3){
+        const hint = document.createElement('div');
+        hint.className = 'quest-more-hint';
+        hint.style.cssText = 'text-align:center;padding:8px;font-size:11px;color:rgba(255,255,255,0.6);cursor:pointer;';
+        hint.textContent = `+${p.quests.length - 3} more quest(s) — open Quest Log to view all`;
+        hint.addEventListener('click', ()=>{
+          // Toggle the quests-mobile details element
+          const questsPanel = document.getElementById('quests-mobile');
+          if(questsPanel && questsPanel.tagName === 'DETAILS') questsPanel.open = true;
+          // Scroll into view
+          if(questsPanel) questsPanel.scrollIntoView({behavior:'smooth', block:'start'});
+        });
+        trackerList.appendChild(hint);
+      }
 
       // Show empty state if no quests
       if(p.quests.length === 0 && completed.length === 0){
@@ -1738,14 +1814,17 @@ class Game {
       const modal = document.getElementById('modal');
       if(!modal) return;
       modal.setAttribute('aria-hidden','false');
-      document.getElementById('modal-title').textContent = title;
-      const body = document.getElementById('modal-body'); body.innerHTML = bodyHtml;
-      const actionsEl = document.getElementById('modal-actions'); actionsEl.innerHTML='';
-      actions.forEach(a=>{
-        const btn = document.createElement('button'); btn.textContent = a.text;
-        btn.addEventListener('click', ()=> a.action && a.action());
-        actionsEl.appendChild(btn);
-      });
+      const titleEl = document.getElementById('modal-title'); if(titleEl) titleEl.textContent = title;
+      const body = document.getElementById('modal-body'); if(body) body.innerHTML = bodyHtml;
+      const actionsEl = document.getElementById('modal-actions'); 
+      if(actionsEl){
+        actionsEl.innerHTML='';
+        (actions || []).forEach(a=>{
+          const btn = document.createElement('button'); btn.textContent = a.text;
+          btn.addEventListener('click', ()=> a.action && a.action());
+          actionsEl.appendChild(btn);
+        });
+      }
     }
 
     hideModal(){
@@ -1972,6 +2051,7 @@ class Game {
   save() {
       try {
         const data = {
+          version: SAVE_VERSION,
           player: this.player.toJSON(),
           inventory: this.inventory.toJSON(),
           quests: this.player.quests || [],
@@ -1999,7 +2079,11 @@ class Game {
       try {
         const raw = localStorage.getItem(SAVE_KEY);
         if (!raw) return this.log('No save found.');
-        const data = JSON.parse(raw);
+        let data;
+        try{ data = JSON.parse(raw); }
+        catch(parseErr){ this.log('Corrupt save detected. Attempting recovery...'); data = {}; }
+        // Migrate older save formats / ensure defaults
+        data = migrateSaveData(data);
         this.player = new Player();
         this.player.fromJSON(data.player);
         // Restore inventory
@@ -2036,6 +2120,19 @@ class Game {
       ['btn-field','btn-dungeon','btn-npc','btn-rest','btn-save','btn-load'].forEach(id=>{
         const el = document.getElementById(id); if(el) el.disabled = val;
       });
+    }
+
+    // Disable non-combat controls (main + town + utility) during combat
+    setNonCombatControlsDisabled(disabled){
+      const ids = ['btn-field','btn-dungeon','btn-town','btn-npc','btn-rest','btn-save','btn-load','btn-blacksmith','btn-market','btn-storage','btn-quest-board','btn-field-return'];
+      ids.forEach(id=>{ const el = document.getElementById(id); if(el) el.disabled = disabled; });
+    }
+
+    // Enable/disable all combat action buttons
+    setCombatButtonsEnabled(enabled){
+      const container = document.getElementById('combat-actions');
+      if(!container) return;
+      Array.from(container.querySelectorAll('button')).forEach(b=> b.disabled = !enabled);
     }
   }
 

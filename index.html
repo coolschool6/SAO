@@ -19,9 +19,9 @@
       <div id="status" class="card">
         <h2>Player Status</h2>
         <div id="player-name">Player</div>
-        <div class="stat">Lv <span id="player-level">1</span> | HP <span id="player-hp">10</span>/<span id="player-maxhp">10</span> | Gold <span id="player-gold">0</span></div>
+        <div class="stat">Lv <span id="player-level">1</span> | HP <span id="player-hp">10</span>/<span id="player-maxhp">10</span></div>
         <div class="bar-wrap"><div class="bar-outer"><div id="hp-bar" class="bar-inner"></div></div></div>
-        <div class="stat">XP <span id="player-xp">0</span>/<span id="player-nextxp">100</span> | Floor <span id="player-floor">1</span></div>
+        <div class="stat">XP <span id="player-xp">0</span>/<span id="player-nextxp">100</span> | Floor <span id="player-floor">1</span> | 💰 <span id="player-gold">0</span>G</div>
         <div class="bar-wrap"><div class="bar-outer"><div id="xp-bar" class="bar-inner"></div></div></div>
         <details class="stat-details">
           <summary>Stats & Equipment</summary>
@@ -47,7 +47,7 @@
       <!-- Action Log -->
       <div id="log" class="card">
         <h2>Adventure Log</h2>
-        <div id="log-entries" class="log-entries"></div>
+        <div id="log-entries" class="log-entries" role="log" aria-live="polite" aria-atomic="false"></div>
       </div>
 
       <!-- Inventory (collapsible) -->
@@ -112,11 +112,6 @@
       <div class="achievement-desc"></div>
       <div class="achievement-reward">+50 Gold</div>
     </div>
-  </div>
-
-  <!-- Combo Overlay -->
-  <div id="combo-overlay" class="combo-overlay">
-    <div class="combo-text"></div>
   </div>
 
   <!-- Combo Overlay -->
