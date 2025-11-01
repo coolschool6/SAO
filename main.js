@@ -15,19 +15,33 @@
         {name:'Giant Beetle',hpMul:1.2,atkMul:1.0,exp:10,gold:8}
       ],
       boss: {id:'boss1',name:'Slime King',hpMul:6,atk:4,def:1,exp:120,gold:80},
-      quests: [{id:'f1q1',title:'Clear the Meadow',desc:'Defeat 8 Slimes or field monsters on Floor 1',type:'kill',target:8,reward:{xp:120,gold:80}}]
+      quests: [{id:'f1q1',title:'Clear the Meadow',desc:'Defeat 8 Slimes or field monsters on Floor 1',type:'kill',target:8,reward:{xp:120,gold:80}}],
+      // Lightweight exploration events for added variety
+      events: [
+        { id:'hidden_shrine', name:'Hidden Shrine', type:'shrine', chance:0.08 },
+        { id:'ambush', name:'Ambush!', type:'ambush', chance:0.06 }
+      ]
     },
     2: {
       name: 'Whispering Woods', theme:'forest', dungeonRooms:4,
       enemies:[{name:'Forest Imp',hpMul:1.2,atkMul:1.0,exp:12,gold:8},{name:'Dire Wolf',hpMul:1.6,atkMul:1.4,exp:18,gold:12}],
       boss:{id:'boss2',name:'Ancient Ent',hpMul:8,atk:6,def:2,exp:220,gold:150},
-      quests:[{id:'f2q1',title:'Gather Bark',desc:'Collect 4 Bark Fragments from the woods',type:'gather',target:4,reward:{xp:140,gold:90}}]
+      quests:[{id:'f2q1',title:'Gather Bark',desc:'Collect 4 Bark Fragments from the woods',type:'gather',target:4,reward:{xp:140,gold:90}}],
+      events: [
+        { id:'merchant_woods', name:'Wandering Merchant', type:'merchant', chance:0.10 },
+        { id:'lost_faune', name:'Lost Faune', type:'lost_faune', chance:0.07 },
+        { id:'ambush', name:'Ambush!', type:'ambush', chance:0.07 }
+      ]
     },
     3: {
       name: 'Crystal Caves', theme:'cave', dungeonRooms:5,
       enemies:[{name:'Cave Bat',hpMul:1.4,atkMul:1.2,exp:14,gold:10},{name:'Crystal Golem',hpMul:2.0,atkMul:1.6,exp:26,gold:20}],
       boss:{id:'boss3',name:'Glimmer Golem',hpMul:10,atk:8,def:3,exp:360,gold:240},
-      quests:[{id:'f3q1',title:'Mine Crystals',desc:'Bring back 3 Raw Crystals from Floor 3 caves',type:'gather',target:3,reward:{xp:200,gold:140}}]
+      quests:[{id:'f3q1',title:'Mine Crystals',desc:'Bring back 3 Raw Crystals from Floor 3 caves',type:'gather',target:3,reward:{xp:200,gold:140}}],
+      events: [
+        { id:'hidden_shrine', name:'Gleaming Shrine', type:'shrine', chance:0.09 },
+        { id:'ambush', name:'Cave Ambush', type:'ambush', chance:0.06 }
+      ]
     },
     4: {
       name:'Sunken Marsh', theme:'swamp', dungeonRooms:5,
@@ -137,6 +151,9 @@
       // Combo system
       this.comboCount = 0;
       this.maxCombo = 0;
+      // Quest availability control (accept once; disappear after complete/abandon)
+      this.acceptedOriginalQuestIds = [];
+      this.finishedOriginalQuestIds = [];
     }
     nextXp(){ return 50 + Math.floor(60 * (this.level-1) * 1.3) }
     addXp(amount){
@@ -173,7 +190,8 @@
         dodges: this.dodges, dodgeStreak: this.dodgeStreak, fieldBosses: this.fieldBosses, stashCount: this.stashCount,
         storageUsed: this.storageUsed, consumablesUsed: this.consumablesUsed, questsAccepted: this.questsAccepted,
         questsCompleted: this.questsCompleted, nearDeathSurvival: this.nearDeathSurvival, equipmentUpgrades: this.equipmentUpgrades,
-        npcsTalked: this.npcsTalked, archetype: this.archetype, comboCount: this.comboCount, maxCombo: this.maxCombo
+        npcsTalked: this.npcsTalked, archetype: this.archetype, comboCount: this.comboCount, maxCombo: this.maxCombo,
+        acceptedOriginalQuestIds: this.acceptedOriginalQuestIds, finishedOriginalQuestIds: this.finishedOriginalQuestIds
       };
     }
     
@@ -261,7 +279,10 @@ class Game {
       this.busy = false;
       this.inTown = false; // whether player is currently in town/hub
       this.playerTurn = true; // track whose turn it is in combat
+      // Daily goals / streak data (localStorage-backed)
+      this.daily = null;
       this.initUI();
+      this.initDailyGoals();
       this.updateUI();
       this.log('Welcome to SAO Text Adventure. Talk to NPCs for quests and explore to gain XP.');
     }
@@ -270,6 +291,7 @@ class Game {
       document.getElementById('btn-dungeon').addEventListener('click', ()=>this.explore('dungeon'));
       document.getElementById('btn-npc').addEventListener('click', ()=>this.openNPCDialog());
       const skBtn = document.getElementById('btn-skills'); if(skBtn) skBtn.addEventListener('click', ()=> this.openSkillModal());
+    const spBtn = document.getElementById('btn-allocate-skills'); if(spBtn) spBtn.addEventListener('click', ()=> this.openSkillModal());
     const achBtn = document.getElementById('btn-achievements'); if(achBtn) achBtn.addEventListener('click', ()=> this.showAchievementsModal());
     const archBtn = document.getElementById('btn-archetype'); if(archBtn) archBtn.addEventListener('click', ()=> this.showArchetypeModal());
   // Crafting removed
@@ -292,6 +314,8 @@ class Game {
         // town action buttons (persistent panel)
         const tb = document.getElementById('btn-blacksmith'); if(tb) tb.addEventListener('click', ()=> this.showBlacksmithModal());
         const tm = document.getElementById('btn-market'); if(tm) tm.addEventListener('click', ()=> this.showMarketModal());
+          const tArena = document.getElementById('btn-boss-arena'); if(tArena) tArena.addEventListener('click', ()=> this.showBossArenaModal());
+    const tTravel = document.getElementById('btn-travel'); if(tTravel) tTravel.addEventListener('click', ()=> this.showTravelModal());
         const tStorage = document.getElementById('btn-storage'); if(tStorage) tStorage.addEventListener('click', ()=> this.showStorageModal());
         const tq = document.getElementById('btn-quest-board'); if(tq) tq.addEventListener('click', ()=> this.showQuestBoardModal());
         const tr = document.getElementById('btn-field-return'); if(tr) tr.addEventListener('click', ()=> this.returnToField());
@@ -341,6 +365,39 @@ class Game {
       const townAct = document.getElementById('town-actions'); if(townAct) townAct.style.display = 'flex';
       const combatAct = document.getElementById('combat-actions'); if(combatAct) combatAct.style.display = 'none';
       this.updateUI();
+    }
+
+    // Travel between floors (select a target floor; ensure at least Floor 2 is available)
+    showTravelModal(){
+      const p = this.player;
+      const cleared = Array.isArray(p.clearedBosses) ? p.clearedBosses : [];
+      let maxUnlocked = 1;
+      if(cleared.length) maxUnlocked = Math.max(...cleared) + 1;
+      // Ensure floor 2 is always selectable as requested
+  // Strict gating: can only travel up to next floor after cleared boss; do not force unlock Floor 2
+      maxUnlocked = Math.min(MAX_FLOORS, maxUnlocked);
+
+      const buttons = [];
+      for(let f=1; f<=maxUnlocked; f++){
+        const current = (f === p.floor) ? ' (current)' : '';
+        buttons.push(`<button data-floor="${f}">Floor ${f}${current}</button>`);
+      }
+      const html = `
+        <div style="display:flex;flex-direction:column;gap:8px">
+          <div><strong>Travel</strong><div class="muted">Choose a floor to set as your current exploration floor. Higher floors are tougher.</div></div>
+          <div style="display:flex;flex-wrap:wrap;gap:6px">${buttons.join('')}</div>
+        </div>
+      `;
+      this.showModal('Travel Between Floors', html, [{text:'Close', action:()=> this.hideModal()}]);
+      const body = document.getElementById('modal-body');
+      body.querySelectorAll('button[data-floor]').forEach(btn=> btn.addEventListener('click', ()=>{
+        const f = parseInt(btn.getAttribute('data-floor'));
+        if(!Number.isFinite(f)) return;
+        p.floor = f;
+        this.logEvent('info', `Set current floor to ${f}.`);
+        this.hideModal();
+        this.updateUI();
+      }));
     }
 
     leaveTown(){
@@ -496,6 +553,23 @@ class Game {
 
     // Quest Board: global/board quests including escort/delivery/daily
     showQuestBoardModal(){
+      // Daily Goals section
+      const daily = this.daily || this.getDailyData();
+      const dailyTasks = daily.tasks.map(t=>{
+        const pct = Math.min(100, Math.round((t.progress / t.target) * 100));
+        const status = t.progress >= t.target ? 'Completed' : `${t.progress}/${t.target}`;
+        const rewardStr = t.reward.tokenFragments? `${t.reward.tokenFragments} Token Fragment(s)` : (t.reward.mats? `${t.reward.mats} Mats` : `${t.reward.gold||0} Gold`);
+        return `<div class="daily-item"><div><strong>${t.title}</strong> — <span class="muted">${status}</span><div class="muted">Reward: ${rewardStr}</div></div><div class="bar-outer"><div class="bar-inner" style="width:${pct}%"></div></div></div>`;
+      }).join('');
+      const dailyHtml = `
+        <div class="card" style="padding:8px">
+          <div style="display:flex;justify-content:space-between;align-items:center;gap:8px">
+            <h4 style="margin:0">Daily Goals</h4>
+            <div class="muted">Streak: ${daily.streak || 0} day(s)${(daily.streak||0)>0? ' — +3% XP':''}</div>
+          </div>
+          ${dailyTasks || '<div class="muted">No daily tasks.</div>'}
+        </div>`;
+
       // some sample board quests
       const boardQuests = [
         {id:'board1',title:'Escort the Merchant',desc:'Escort a merchant through 4 encounters without fleeing. Reward: 200 XP, 150g',type:'escort',target:4,reward:{xp:200,gold:150}},
@@ -503,13 +577,20 @@ class Game {
         {id:'board3',title:'Daily Skirmish',desc:'Defeat 3 monsters on your floor. Repeatable daily. Reward: 50 XP, 30g',type:'kill',target:3,reward:{xp:50,gold:30},repeatable:true}
       ];
 
-      // Build UI with tabs: Available / Active / Completed
-      const availHtml = boardQuests.map((q,i)=> `<div style="display:flex;justify-content:space-between;align-items:center;padding:6px"><div><strong>${q.title}</strong><div class="muted">${q.desc}</div></div><div><button data-board="${i}">Accept</button></div></div>`).join('') || '<div class="muted">No available quests.</div>';
+  // Build UI with tabs: Available / Active / Completed
+  const p = this.player;
+  p.acceptedOriginalQuestIds = p.acceptedOriginalQuestIds || [];
+  p.finishedOriginalQuestIds = p.finishedOriginalQuestIds || [];
+  const acceptedSet = new Set(p.acceptedOriginalQuestIds);
+  const finishedSet = new Set(p.finishedOriginalQuestIds);
+  const available = boardQuests.filter(q=> !acceptedSet.has(q.id) && !finishedSet.has(q.id));
+  const availHtml = available.map((q,i)=> `<div style="display:flex;justify-content:space-between;align-items:center;padding:6px"><div><strong>${q.title}</strong><div class="muted">${q.desc}</div></div><div><button data-board="${i}">Accept</button></div></div>`).join('') || '<div class="muted">No available quests.</div>';
       const activeHtml = (this.player.quests || []).map((q,idx)=> `<div style="display:flex;justify-content:space-between;align-items:center;padding:6px"><div><strong>${q.title}</strong><div class="muted">${q.desc}</div><div class="muted">Progress: ${q.progress||0}/${q.target}</div></div><div><button data-abandon="${q.id}">Abandon</button></div></div>`).join('') || '<div class="muted">No active quests.</div>';
       const completedHtml = (this.player.completedQuests || []).map((q,idx)=> `<div style="display:flex;justify-content:space-between;align-items:center;padding:6px"><div><strong>${q.title}</strong><div class="muted">Reward: ${q.reward.xp} XP, ${q.reward.gold} gold</div></div><div><button data-collect="${idx}">Collect</button></div></div>`).join('') || '<div class="muted">No completed quests.</div>';
 
       const html = `
         <div style="display:flex;flex-direction:column;gap:8px">
+          ${dailyHtml}
           <div style="display:flex;gap:8px"><button data-tab="avail">Available</button><button data-tab="active">Active</button><button data-tab="completed">Completed</button></div>
           <div id="qboard-avail">${availHtml}</div>
           <div id="qboard-active" style="display:none">${activeHtml}</div>
@@ -530,9 +611,10 @@ class Game {
       // accept available
       body.querySelectorAll('button[data-board]').forEach(btn=> btn.addEventListener('click', ()=>{
         const idx = parseInt(btn.getAttribute('data-board'));
-        const raw = Object.assign({}, boardQuests[idx]); raw.id = raw.id + '_' + Date.now();
+        const base = available[idx]; if(!base) return; // safety
+        const raw = Object.assign({}, base); raw.id = raw.id + '_' + Date.now();
         // attach per-type meta and special behavior
-        const pushQ = {id:raw.id,title:raw.title,desc:raw.desc,type:raw.type,target:raw.target,progress:0,reward:raw.reward,meta:{original:boardQuests[idx]}};
+        const pushQ = {id:raw.id,title:raw.title,desc:raw.desc,type:raw.type,target:raw.target,progress:0,reward:raw.reward,meta:{original:base}};
         if(raw.type === 'escort'){
           pushQ.meta.remaining = raw.target; // track remaining encounters if desired
         }
@@ -545,6 +627,10 @@ class Game {
           this.showInventoryBadge();
         }
         this.player.quests.push(pushQ);
+        // mark original quest as accepted so it cannot be accepted again
+        if(pushQ.meta && pushQ.meta.original && pushQ.meta.original.id){
+          if(!p.acceptedOriginalQuestIds.includes(pushQ.meta.original.id)) p.acceptedOriginalQuestIds.push(pushQ.meta.original.id);
+        }
         this.player.questsAccepted = (this.player.questsAccepted || 0) + 1; // Track for achievements
         this.logEvent('quest', `Accepted quest: ${pushQ.title}`);
         this.hideModal(); this.updateUI();
@@ -552,7 +638,16 @@ class Game {
 
       // abandon active
       body.querySelectorAll('button[data-abandon]').forEach(btn=> btn.addEventListener('click', ()=>{
-        const id = btn.getAttribute('data-abandon'); this.player.quests = this.player.quests.filter(q=> q.id !== id); this.log('Quest abandoned.'); this.hideModal(); this.updateUI();
+        const id = btn.getAttribute('data-abandon');
+        const q = (p.quests||[]).find(x=> x.id===id);
+        // Remove from active
+        this.player.quests = this.player.quests.filter(qx=> qx.id !== id);
+        // Treat as consumed so it cannot be accepted again (only once rule)
+        if(q && q.meta && q.meta.original && q.meta.original.id){
+          if(!p.finishedOriginalQuestIds.includes(q.meta.original.id)) p.finishedOriginalQuestIds.push(q.meta.original.id);
+        }
+        this.log('Quest abandoned. It cannot be accepted again.');
+        this.hideModal(); this.updateUI();
       }));
 
       // collect completed
@@ -574,6 +669,12 @@ class Game {
         this.log(`Collected rewards for ${q.title}: ${q.reward.xp || 0} XP, ${q.reward.gold || 0} gold.`);
         // remove from completed list
         this.player.completedQuests.splice(idx,1);
+        // Mark as permanently finished to hide from Available (only once rule)
+        if(q.meta && q.meta.original && q.meta.original.id){
+          if(!p.finishedOriginalQuestIds.includes(q.meta.original.id)) p.finishedOriginalQuestIds.push(q.meta.original.id);
+          // Also cleanup accepted marker
+          p.acceptedOriginalQuestIds = (p.acceptedOriginalQuestIds||[]).filter(x=> x !== q.meta.original.id);
+        }
         if(leveled){ this.log(`Gained ${leveled} level(s)! Allocate your stat points.`); this.pauseForStatAllocation(); }
         this.hideModal(); this.updateUI();
       }));
@@ -770,6 +871,16 @@ class Game {
       document.getElementById('quest-count').textContent = p.quests.length;
       const pointsEl = document.getElementById('player-points'); if(pointsEl) pointsEl.textContent = p.pendingStatPoints || 0;
       const spEl = document.getElementById('player-skillpoints'); if(spEl) spEl.textContent = p.skillPoints || 0;
+      // Show/hide Allocate SP button based on available skill points
+      const spBtn = document.getElementById('btn-allocate-skills');
+      if(spBtn){
+        if(p.skillPoints > 0){
+          spBtn.style.display = 'inline-block';
+          spBtn.textContent = `Allocate SP (${p.skillPoints})`;
+        } else {
+          spBtn.style.display = 'none';
+        }
+      }
       const tokEl = document.getElementById('player-tokens'); if(tokEl) tokEl.textContent = p.tokens || 0;
       const achCountEl = document.getElementById('achievement-count'); if(achCountEl) achCountEl.textContent = Object.keys(p.achievements || {}).length;
       const achTotalEl = document.getElementById('achievement-total'); if(achTotalEl && window.ACHIEVEMENTS) achTotalEl.textContent = Object.keys(window.ACHIEVEMENTS).length;
@@ -991,6 +1102,8 @@ class Game {
             this.logEvent('info', `You arrived at Floor ${floor} with the parcel for '${q.title}'. Return to the Quest Board to collect the reward.`);
             // mark delivered for this specific quest (progress 1)
             this.progressQuests('delivery', 1, q.id);
+            // Daily: delivery progress
+            this.progressDaily('deliver1', 1);
             // do not remove parcel here; it will be removed when player collects reward
           }
         }
@@ -1035,6 +1148,8 @@ class Game {
             this.fight(mini);
           } else {
             if(found < 0.75){
+              // Try an exploration event before spawning the enemy
+              if(this.tryExplorationEvent(floor, 'dungeon')){ return; }
               const enemy = makeEnemy(floor,'dungeon'); enemy.floor = floor;
                 // attach escort quest flags if escort active
                 const escortQ = (this.player.quests || []).find(q=> q.type === 'escort');
@@ -1058,8 +1173,12 @@ class Game {
             const fb = FLOOR_DEFS[floor].fieldBoss;
             const boss = {name: fb.name, hp: Math.floor(fb.hpMul*8), maxHP: Math.floor(fb.hpMul*8), atk: fb.atk, def: fb.def, dex: 1 + Math.floor(floor*0.4), exp: fb.exp, gold: fb.gold, isBoss: true, floor, cannotFlee:false, inDungeon:false};
             this.logEvent('info', `⚠️ The earth trembles! A RARE FIELD BOSS, ${boss.name}, has appeared!`);
+            this.shakeScreen(400);
+            this.playSfx('boss');
             this.fight(boss);
           } else if(found < 0.75){
+            // Try an exploration event before spawning the enemy
+            if(this.tryExplorationEvent(floor, 'field')){ return; }
             const enemy = makeEnemy(floor,'field'); enemy.floor = floor;
             // attach escort quest flags if escort active
             const escortQ2 = (this.player.quests || []).find(q=> q.type === 'escort');
@@ -1079,6 +1198,100 @@ class Game {
           }
         }
       }, 700 + Math.random()*800);
+    }
+
+    // Try to trigger one exploration event; returns true if it handled the step (either started combat or resolved modal)
+    tryExplorationEvent(floor, context='field'){
+      const def = FLOOR_DEFS[floor];
+      const evts = (def && Array.isArray(def.events)) ? def.events : null;
+      if(!evts || evts.length===0) return false;
+      // roll one event by chance
+      for(const e of evts){
+        if(Math.random() < (e.chance || 0)){
+          // resolve by type
+          if(e.type === 'merchant') return this.eventMerchant(floor);
+          if(e.type === 'shrine') return this.eventShrine(floor);
+          if(e.type === 'ambush') return this.eventAmbush(floor, context);
+          if(e.type === 'lost_faune') return this.eventLostFaune(floor);
+        }
+      }
+      return false;
+    }
+
+    eventMerchant(floor){
+      const price = 50 + Math.max(0, floor-1) * 2;
+      const html = `
+        <div style="display:flex;flex-direction:column;gap:8px">
+          <div><strong>Wandering Merchant</strong></div>
+          <div class="muted">"A blessing for brave explorers!"</div>
+          <div>Pay ${price}g for a temporary blessing (+1 ATK, +1 DEF for 3 battles)?</div>
+        </div>`;
+      this.showModal('Merchant in the Woods', html, [
+        {text:'Buy Blessing', action:()=>{
+          if(this.player.gold < price){ this.logEvent('info','Not enough gold.'); this.hideModal(); this.busy=false; this.setButtonsDisabled(false); this.updateUI(); return; }
+          this.player.gold -= price;
+          this.applyStatusToPlayer('bless_atk', 3, 1);
+          this.applyStatusToPlayer('bless_def', 3, 1);
+          this.logEvent('info','You feel empowered by the blessing (+1 ATK/DEF for 3 battles).');
+          this.hideModal(); this.busy=false; this.setButtonsDisabled(false); this.updateUI();
+        }},
+        {text:'Ignore', action:()=>{ this.hideModal(); this.busy=false; this.setButtonsDisabled(false); this.updateUI(); }}
+      ]);
+      return true;
+    }
+
+    eventShrine(floor){
+      const html = `
+        <div style="display:flex;flex-direction:column;gap:8px">
+          <div><strong>Hidden Shrine</strong></div>
+          <div class="muted">A faint hum resonates from the shrine.</div>
+          <div>Pray and accept fate? (Random boon 70% / curse 30%)</div>
+        </div>`;
+      this.showModal('Hidden Shrine', html, [
+        {text:'Pray', action:()=>{
+          const boon = Math.random() < 0.7;
+          if(boon){
+            this.player.hp = this.player.maxHP;
+            this.applyStatusToPlayer('lucky', 3, 1);
+            this.logEvent('info','The shrine blesses you. HP restored and +1 Luck (3 battles).');
+          } else {
+            this.applyStatusToPlayer('weaken', 2, -1);
+            this.logEvent('info','A dark chill weakens you (-1 ATK for 2 battles).');
+          }
+          this.hideModal(); this.busy=false; this.setButtonsDisabled(false); this.updateUI();
+        }},
+        {text:'Leave', action:()=>{ this.hideModal(); this.busy=false; this.setButtonsDisabled(false); this.updateUI(); }}
+      ]);
+      return true;
+    }
+
+    eventAmbush(floor, context){
+      // Start an immediate fight with improved drops
+      const enemy = makeEnemy(floor, context==='dungeon' ? 'dungeon' : 'field');
+      enemy.floor = floor; enemy.rareDropBoost = true;
+      this.logEvent('info', 'Ambush! Enemies leap from the shadows!', 'Drops boosted');
+      this.fight(enemy);
+      return true;
+    }
+
+    eventLostFaune(floor){
+      const html = `
+        <div style="display:flex;flex-direction:column;gap:8px">
+          <div><strong>Lost Faune</strong></div>
+          <div class="muted">A timid faune looks disoriented.</div>
+          <div>Help guide them out of the woods?</div>
+        </div>`;
+      this.showModal('Lost Faune', html, [
+        {text:'Help', action:()=>{
+          const reward = Math.random() < 0.5 ? 'Raw Crystal' : 'Ingot';
+          const itm = this.inventory.addItem({name:reward,type:'resource'});
+          this.logEvent('loot', `The faune thanks you with ${itm.name}.`);
+          this.showInventoryBadge();
+          this.hideModal(); this.busy=false; this.setButtonsDisabled(false); this.updateUI();
+        }},
+        {text:'Decline', action:()=>{ this.hideModal(); this.busy=false; this.setButtonsDisabled(false); this.updateUI(); }}
+      ]);
+      return true;
     }
 
     fight(enemy){
@@ -1143,6 +1356,7 @@ class Game {
           // decrement stun duration
           for(let i=p.statusEffects.length-1;i>=0;i--){ if(p.statusEffects[i].type==='stun'){ p.statusEffects[i].turns--; if(p.statusEffects[i].turns<=0) p.statusEffects.splice(i,1); break; } }
           this.logEvent('info','You are stunned and cannot act this turn');
+          this.vibrate([25,25]);
           this.playerTurn = false; // mark as not player turn
           this.setCombatButtonsEnabled(false);
           return setTimeout(()=> this.enemyTurn(true), 400);
@@ -1176,13 +1390,15 @@ class Game {
       }
       
   // critical hit calculation (base 5% + Luck scaling + small DEX)
-  let critChance = 0.05 + (p.luck || 0) * 0.01 + (p.dex || 0) * 0.003;
+  const luckBonus = this.getPlayerTempBonus('luck');
+  let critChance = 0.05 + ((p.luck || 0) + luckBonus) * 0.01 + (p.dex || 0) * 0.003;
   if(p.archetype === 'striker') critChance += (ARCHETYPES.striker.passives.critBonus || 0);
       if(p.skills && p.skills['battle_focus']) critChance += 0.05; // passive bonus
       const isCrit = guaranteedCrit || Math.random() < critChance;
       if(isCrit) p.criticalHits = (p.criticalHits || 0) + 1; // Track crits for achievements
       
-      const playerDamageRaw = p.atk + rand(-1,2);
+  const atkBonus = this.getPlayerTempBonus('atk');
+  const playerDamageRaw = (p.atk + atkBonus) + rand(-1,2);
       let playerDamage = Math.max(1, playerDamageRaw - (enemy.def||0));
       playerDamage = Math.floor(playerDamage * comboMultiplier); // Apply combo bonus
       if(isCrit){ playerDamage = playerDamage * 2; }
@@ -1199,8 +1415,12 @@ class Game {
       
       if(isCrit){
         this.logEvent('attack', `⚔️ CRITICAL HIT! ${this.player.name} struck for ${playerDamage} damage!${comboText}`, detail, 'log-critical');
+        this.vibrate([40,60,40]);
+        this.playSfx('attack');
+        this.shakeScreen(200);
       } else {
         this.logEvent('attack', `You hit ${enemy.name} for ${playerDamage} damage${comboText}`, detail);
+        this.playSfx('attack');
       }
       
       // Show combo UI overlay for high combos
@@ -1220,6 +1440,8 @@ class Game {
       
       // check death
       if(enemy.hp <= 0){
+        this.vibrate([30,30,60]);
+        this.shakeScreen(260);
         this.onEnemyDefeated(enemy);
         this.exitCombat();
         return;
@@ -1379,11 +1601,12 @@ class Game {
       // Reset dodge streak on hit (or miss)
       p.dodgeStreak = 0;
       
-      const enemyDamageRaw = enemy.atk + rand(-1,2);
+  const defBonus = this.getPlayerTempBonus('def');
+  const enemyDamageRaw = enemy.atk + rand(-1,2);
       // apply guard/weakened modifiers
       const guardStacks = (p.statusEffects||[]).filter(s=> s.type==='guard' && s.turns>0).reduce((a,s)=> a + (s.value||0), 0);
       const weakened = (p.statusEffects||[]).some(s=> s.type==='weakened' && s.turns>0);
-      let enemyDamage = Math.max(1, enemyDamageRaw - (p.def + guardStacks));
+  let enemyDamage = Math.max(1, enemyDamageRaw - (p.def + defBonus + guardStacks));
       if(p.archetype === 'guardian') enemyDamage = Math.max(1, enemyDamage - (ARCHETYPES.guardian.passives.flatDamageReduction || 0));
       if(weakened) enemyDamage = Math.ceil(enemyDamage * 1.25);
         if(p.isDefending && !freeAttack){ 
@@ -1399,7 +1622,9 @@ class Game {
         p.comboCount = 0;
       }
       
-      this.logEvent('attack', `${enemy.name} hits you for ${enemyDamage} damage`, `Attack: ${enemyDamageRaw} - DEF: ${p.def}`);
+  this.logEvent('attack', `${enemy.name} hits you for ${enemyDamage} damage`, `Attack: ${enemyDamageRaw} - DEF: ${p.def + defBonus}`);
+  this.playSfx('hit');
+  this.vibrate([20]);
       this.flashElement(document.getElementById('player-hp'),'flash-red',700);
       // Track near-death survival achievement
       if(p.hp > 0 && p.hp <= p.maxHP * 0.1) {
@@ -1413,6 +1638,7 @@ class Game {
       this.updateUI();
       if(p.hp <= 0){ 
         this.logEvent('info','You were defeated...','HP and gold reduced'); 
+        this.vibrate([80,60,80]);
         this.failEscortQuests(); 
         p.hp = Math.max(1, Math.floor(p.maxHP/2)); 
         p.gold = Math.max(0, Math.floor(p.gold*0.7));
@@ -1428,7 +1654,9 @@ class Game {
       const p = this.player;
       this.logEvent('boss', `Defeated ${enemy.name}!`, `+${enemy.exp} XP, +${enemy.gold} gold`);
       // Archetype XP bonus (Sage)
-      const xpMult = p.archetype === 'sage' ? (ARCHETYPES.sage.passives.xpMult || 1) : 1;
+      const xpArche = p.archetype === 'sage' ? (ARCHETYPES.sage.passives.xpMult || 1) : 1;
+      const xpStreak = this.getXpStreakMultiplier();
+      const xpMult = xpArche * xpStreak;
       const leveled = p.addXp(Math.floor(enemy.exp * xpMult));
       p.gold += enemy.gold;
       
@@ -1450,8 +1678,10 @@ class Game {
         this.progressQuests('escort', 1, enemy.escortQuestId);
       }
       // chance to drop a resource tied to enemy/floor
-      const res = this.getResourceForEnemy(enemy);
-      const dropBase = 0.35 + (p.luck||0)*0.02 + (p.archetype==='sage' ? (ARCHETYPES.sage.passives.dropBonus || 0) : 0);
+  const res = this.getResourceForEnemy(enemy);
+  const luckBonus2 = this.getPlayerTempBonus('luck');
+  let dropBase = 0.35 + ((p.luck||0)+luckBonus2)*0.02 + (p.archetype==='sage' ? (ARCHETYPES.sage.passives.dropBonus || 0) : 0);
+      if(enemy.rareDropBoost) dropBase = Math.min(0.95, dropBase + 0.2);
       if(res && Math.random() < dropBase){
         const dropped = this.inventory.addItem({name:res,type:'resource'}, 1);
         this.logEvent('loot', `Found resource: ${dropped.name}`);
@@ -1466,6 +1696,8 @@ class Game {
           // award token on floor boss clear
           p.tokens = (p.tokens||0) + 1; this.logEvent('info', 'Awarded a Quest Token for clearing the floor boss!');
           const statusCard = document.getElementById('status'); this.flashElement(statusCard,'levelup-flash',1200);
+          // Daily: dungeon clear progress
+          this.progressDaily('clear1', 1);
         }
       }
       // Field boss rare drop
@@ -1473,14 +1705,18 @@ class Game {
         const drop = this.inventory.addItem({name:'Lucky Pendant', type:'equipment', slot:'Accessory', def:1, luck:1});
         this.logEvent('loot', `Rare drop: ${drop.name} (+1 LUCK, +1 DEF)`);
         this.showInventoryBadge();
+        this.showDropFlair('epic');
       }
       this.progressQuests('kill',1);
       if(leveled){ 
         this.log(`Gained ${leveled} level(s)! Allocate your stat points.`); 
         const statusCard = document.getElementById('status'); 
         this.flashElement(statusCard,'levelup-flash',1200);
+        this.playSfx('levelup');
         this.pauseForStatAllocation(); 
       }
+      // Daily: win 5 fights progress
+      this.progressDaily('win5', 1);
       this.currentEnemy = null; this.busy=false; this.setButtonsDisabled(false); this.updateUI();
     }
 
@@ -1503,6 +1739,10 @@ class Game {
       for(let i=p.statusEffects.length-1;i>=0;i--){ const s = p.statusEffects[i];
         if(s.type === 'poison'){ const dmg = Math.max(1, Math.floor((p.maxHP||10)*0.03)); p.hp -= dmg; this.logEvent('attack', `Poison deals ${dmg} damage to you`); }
         if(s.type === 'slow'){ /* can be used to reduce action options — keeping simple */ }
+        if(s.type === 'bless_atk'){ /* handled during damage calc via value */ }
+        if(s.type === 'bless_def'){ /* handled during defense calc */ }
+        if(s.type === 'lucky'){ /* handled in drop/xp multipliers implicitly via luck */ }
+        if(s.type === 'weaken'){ /* handled in damage calc via negative atk */ }
         s.turns--; if(s.turns <= 0) p.statusEffects.splice(i,1);
       }
       if(p.hp <= 0){ this.logEvent('info','You succumbed to status effects...'); p.hp = Math.max(1, Math.floor(p.maxHP/2)); }
@@ -2133,6 +2373,115 @@ class Game {
       const container = document.getElementById('combat-actions');
       if(!container) return;
       Array.from(container.querySelectorAll('button')).forEach(b=> b.disabled = !enabled);
+    }
+
+    // ---------- Daily goals & streak ----------
+    initDailyGoals(){
+      const today = new Date();
+      const key = 'sao_daily_v1';
+      const raw = localStorage.getItem(key);
+      let data = null;
+      try{ data = raw ? JSON.parse(raw) : null; }catch{ data = null; }
+      if(!data){ data = this.newDailyData(); }
+      // reset if date changed
+      const last = data.date;
+      const todayStr = this.formatDateKey(today);
+      if(last !== todayStr){
+        // if yesterday had all completed, advance streak; else reset
+        const yesterday = this.yesterdayKey(todayStr);
+        const newStreak = (last === yesterday && this.areAllDailyTasksComplete(data)) ? ((data.streak||0)+1) : 0;
+        // new tasks for today
+        data = this.newDailyData();
+        data.streak = newStreak;
+      }
+      this.daily = data;
+      this.saveDailyData();
+    }
+
+    getDailyData(){ return this.daily || this.newDailyData(); }
+    saveDailyData(){ try{ localStorage.setItem('sao_daily_v1', JSON.stringify(this.daily)); }catch{} }
+    formatDateKey(d){ const dt = (d instanceof Date)? d : new Date(d); return dt.toISOString().slice(0,10); }
+    yesterdayKey(todayKey){ const d = new Date(todayKey); d.setDate(d.getDate()-1); return this.formatDateKey(d); }
+    newDailyData(){ return { date: this.formatDateKey(new Date()), streak: (this.daily && this.daily.streak)||0, tasks:[
+      {id:'win5', title:'Win 5 fights', target:5, progress:0, reward:{gold:80}},
+      {id:'clear1', title:'Clear 1 dungeon', target:1, progress:0, reward:{mats:2}},
+      {id:'deliver1', title:'Deliver 1 parcel', target:1, progress:0, reward:{tokenFragments:1}}
+    ]}; }
+    areAllDailyTasksComplete(d){ return (d.tasks||[]).every(t=> (t.progress||0) >= (t.target||1)); }
+    progressDaily(id, amount=1){
+      if(!this.daily) this.initDailyGoals();
+      const t = (this.daily.tasks||[]).find(x=> x.id===id);
+      if(!t) return;
+      if(t.progress >= t.target) return; // already complete
+      t.progress = Math.min(t.target, (t.progress||0) + amount);
+      // reward on completion
+      if(t.progress >= t.target){
+        if(t.reward.gold){ this.player.gold += t.reward.gold; }
+        if(t.reward.mats){ this.inventory.addItem({name:'Ore',type:'resource'}, t.reward.mats); }
+        if(t.reward.tokenFragments){
+          this.player.tokenFragments = (this.player.tokenFragments||0) + t.reward.tokenFragments;
+          // convert to full token at 5 fragments
+          while(this.player.tokenFragments >= 5){ this.player.tokenFragments -= 5; this.player.tokens = (this.player.tokens||0) + 1; this.logEvent('info','Converted 5 fragments into 1 Token'); }
+        }
+        // popup
+        this.showAchievementPopup({name:`Daily Complete: ${t.title}`, desc:'Daily goal completed', reward: t.reward.gold? `${t.reward.gold}g` : (t.reward.mats? `${t.reward.mats} mats` : `${t.reward.tokenFragments} fragment`) });
+        this.logEvent('quest', `Daily completed: ${t.title}`);
+        // if all complete, persist and maybe notify
+        if(this.areAllDailyTasksComplete(this.daily)){
+          this.logEvent('info','All daily goals completed! Keep logging in daily to build streak (+3% XP).');
+        }
+      }
+      this.saveDailyData(); this.updateUI();
+    }
+    getXpStreakMultiplier(){ const d = this.getDailyData(); return (d.streak||0) > 0 ? 1.03 : 1.0; }
+
+    // ---------- Temporary bonuses from status ----------
+    getPlayerTempBonus(stat){
+      const p = this.player; if(!p || !p.statusEffects) return 0;
+      let sum = 0;
+      p.statusEffects.forEach(s=>{
+        if(stat==='atk' && (s.type==='bless_atk' || s.type==='weaken')) sum += (s.value||0);
+        if(stat==='def' && s.type==='bless_def') sum += (s.value||0);
+        if(stat==='luck' && s.type==='lucky') sum += (s.value||0);
+      });
+      return sum;
+    }
+
+    // ---------- SFX / Haptics / Flair ----------
+    playSfx(name){
+      try{
+        const ctx = this._audioCtx || (this._audioCtx = new (window.AudioContext||window.webkitAudioContext)());
+        const o = ctx.createOscillator(); const g = ctx.createGain();
+        const now = ctx.currentTime;
+        let freq = 220;
+        if(name==='attack') freq = 320; else if(name==='hit') freq = 180; else if(name==='levelup') freq = 520; else if(name==='boss') freq = 120;
+        o.frequency.setValueAtTime(freq, now);
+        g.gain.setValueAtTime(0.0001, now);
+        g.gain.exponentialRampToValueAtTime(0.2, now + 0.02);
+        g.gain.exponentialRampToValueAtTime(0.0001, now + 0.18);
+        o.connect(g); g.connect(ctx.destination); o.start(now); o.stop(now + 0.2);
+      }catch{}
+    }
+    vibrate(pattern){ if(navigator && navigator.vibrate) try{ navigator.vibrate(pattern); }catch{} }
+    shakeScreen(ms=250){ document.body.classList.add('screen-shake'); setTimeout(()=> document.body.classList.remove('screen-shake'), ms); }
+    showDropFlair(rarity='epic'){
+      // simple confetti burst
+      const container = document.createElement('div');
+      container.style.position='fixed'; container.style.left='0'; container.style.top='0'; container.style.width='100%'; container.style.height='100%'; container.style.pointerEvents='none'; container.style.zIndex='9999';
+      for(let i=0;i<30;i++){
+        const c = document.createElement('div');
+        const size = 6 + Math.random()*6;
+        c.style.position='absolute'; c.style.width=`${size}px`; c.style.height=`${size}px`;
+        c.style.background = `hsl(${Math.floor(Math.random()*360)},85%,60%)`;
+        c.style.left = `${Math.random()*100}%`; c.style.top = '0%';
+        c.style.opacity='0.9'; c.style.borderRadius='2px';
+        c.style.transform = `translateY(0)`;
+        container.appendChild(c);
+        const dy = 60 + Math.random()*40;
+        setTimeout(()=>{ c.style.transition='transform 700ms ease-out, opacity 700ms ease-out'; c.style.transform = `translateY(${dy}vh)`; c.style.opacity='0'; }, 10);
+      }
+      document.body.appendChild(container);
+      setTimeout(()=>{ if(container.parentNode) container.parentNode.removeChild(container); }, 800);
     }
   }
 
