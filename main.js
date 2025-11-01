@@ -154,6 +154,8 @@
       // Quest availability control (accept once; disappear after complete/abandon)
       this.acceptedOriginalQuestIds = [];
       this.finishedOriginalQuestIds = [];
+      // Tutorial completion flag
+      this.tutorialComplete = false;
     }
     nextXp(){ return 50 + Math.floor(60 * (this.level-1) * 1.3) }
     addXp(amount){
@@ -191,7 +193,8 @@
         storageUsed: this.storageUsed, consumablesUsed: this.consumablesUsed, questsAccepted: this.questsAccepted,
         questsCompleted: this.questsCompleted, nearDeathSurvival: this.nearDeathSurvival, equipmentUpgrades: this.equipmentUpgrades,
         npcsTalked: this.npcsTalked, archetype: this.archetype, comboCount: this.comboCount, maxCombo: this.maxCombo,
-        acceptedOriginalQuestIds: this.acceptedOriginalQuestIds, finishedOriginalQuestIds: this.finishedOriginalQuestIds
+        acceptedOriginalQuestIds: this.acceptedOriginalQuestIds, finishedOriginalQuestIds: this.finishedOriginalQuestIds,
+        tutorialComplete: this.tutorialComplete
       };
     }
     
@@ -281,17 +284,20 @@ class Game {
       this.playerTurn = true; // track whose turn it is in combat
       // Daily goals / streak data (localStorage-backed)
       this.daily = null;
+      // Auto-save interval
+      this.autoSaveTimer = null;
       this.initUI();
       this.initDailyGoals();
-      this.updateUI();
-      this.log('Welcome to SAO Text Adventure. Talk to NPCs for quests and explore to gain XP.');
+      this.initAutoSave();
+      this.checkNewPlayer();
     }
     initUI(){
       document.getElementById('btn-field').addEventListener('click', ()=>this.explore('field'));
       document.getElementById('btn-dungeon').addEventListener('click', ()=>this.explore('dungeon'));
       document.getElementById('btn-npc').addEventListener('click', ()=>this.openNPCDialog());
       const skBtn = document.getElementById('btn-skills'); if(skBtn) skBtn.addEventListener('click', ()=> this.openSkillModal());
-    const spBtn = document.getElementById('btn-allocate-skills'); if(spBtn) spBtn.addEventListener('click', ()=> this.openSkillModal());
+  const spBtn = document.getElementById('btn-allocate-skills'); if(spBtn) spBtn.addEventListener('click', ()=> this.openSkillModal());
+  const statBtn = document.getElementById('btn-allocate-stats'); if(statBtn) statBtn.addEventListener('click', ()=> this.pauseForStatAllocation());
     const achBtn = document.getElementById('btn-achievements'); if(achBtn) achBtn.addEventListener('click', ()=> this.showAchievementsModal());
     const archBtn = document.getElementById('btn-archetype'); if(archBtn) archBtn.addEventListener('click', ()=> this.showArchetypeModal());
   // Crafting removed
@@ -612,6 +618,15 @@ class Game {
       body.querySelectorAll('button[data-board]').forEach(btn=> btn.addEventListener('click', ()=>{
         const idx = parseInt(btn.getAttribute('data-board'));
         const base = available[idx]; if(!base) return; // safety
+        // Hard guard: prevent accepting a second instance of the same original quest
+        const alreadyActive = (p.quests||[]).some(q=> q.meta && q.meta.original && q.meta.original.id === base.id);
+        const alreadyCompleted = (p.completedQuests||[]).some(q=> q.meta && q.meta.original && q.meta.original.id === base.id);
+        const markedAccepted = (p.acceptedOriginalQuestIds||[]).includes(base.id);
+        const markedFinished = (p.finishedOriginalQuestIds||[]).includes(base.id);
+        if(alreadyActive || alreadyCompleted || markedAccepted || markedFinished){
+          this.logEvent('info', 'You already took this quest. Finish or abandon it first.');
+          return;
+        }
         const raw = Object.assign({}, base); raw.id = raw.id + '_' + Date.now();
         // attach per-type meta and special behavior
         const pushQ = {id:raw.id,title:raw.title,desc:raw.desc,type:raw.type,target:raw.target,progress:0,reward:raw.reward,meta:{original:base}};
@@ -676,6 +691,7 @@ class Game {
           p.acceptedOriginalQuestIds = (p.acceptedOriginalQuestIds||[]).filter(x=> x !== q.meta.original.id);
         }
         if(leveled){ this.log(`Gained ${leveled} level(s)! Allocate your stat points.`); this.pauseForStatAllocation(); }
+        this.save(); // Auto-save on quest completion
         this.hideModal(); this.updateUI();
       }));
     }
@@ -879,6 +895,17 @@ class Game {
           spBtn.textContent = `Allocate SP (${p.skillPoints})`;
         } else {
           spBtn.style.display = 'none';
+        }
+      }
+      // Show/hide Allocate Stats button when pending stat points are available
+      const statBtn = document.getElementById('btn-allocate-stats');
+      if(statBtn){
+        const pending = p.pendingStatPoints || 0;
+        if(pending > 0){
+          statBtn.style.display = 'inline-block';
+          statBtn.textContent = `Allocate Stats (${pending})`;
+        } else {
+          statBtn.style.display = 'none';
         }
       }
       const tokEl = document.getElementById('player-tokens'); if(tokEl) tokEl.textContent = p.tokens || 0;
@@ -1698,6 +1725,7 @@ class Game {
           const statusCard = document.getElementById('status'); this.flashElement(statusCard,'levelup-flash',1200);
           // Daily: dungeon clear progress
           this.progressDaily('clear1', 1);
+          this.save(); // Auto-save on boss clear
         }
       }
       // Field boss rare drop
@@ -1713,6 +1741,7 @@ class Game {
         const statusCard = document.getElementById('status'); 
         this.flashElement(statusCard,'levelup-flash',1200);
         this.playSfx('levelup');
+        this.save(); // Auto-save on level-up
         this.pauseForStatAllocation(); 
       }
       // Daily: win 5 fights progress
@@ -2195,6 +2224,11 @@ class Game {
         this.logEvent('info', `You have chosen the ${arch.name} archetype! Stats adjusted.`);
         this.hideModal();
         this.updateUI();
+        
+        // Continue tutorial if player hasn't completed it
+        if(!this.player.tutorialComplete) {
+          setTimeout(()=> this.showTutorialStep1(), 500);
+        }
       }));
     }
 
@@ -2482,6 +2516,290 @@ class Game {
       }
       document.body.appendChild(container);
       setTimeout(()=>{ if(container.parentNode) container.parentNode.removeChild(container); }, 800);
+    }
+
+    // ---------- Auto-save system ----------
+    initAutoSave(){
+      // Auto-save every 30 seconds
+      this.autoSaveTimer = setInterval(()=> {
+        try {
+          this.save();
+          console.log('[Auto-save] Progress saved at ' + new Date().toLocaleTimeString());
+        } catch(e) {
+          console.error('[Auto-save] Failed:', e);
+        }
+      }, 30000); // 30 seconds
+    }
+
+    // ---------- New player onboarding ----------
+    checkNewPlayer(){
+      const hasSave = localStorage.getItem(SAVE_KEY);
+      if(!hasSave || !this.player.tutorialComplete){
+        // New player - start onboarding flow
+        this.updateUI();
+        setTimeout(()=> this.showWelcomeModal(), 800);
+      } else {
+        // Returning player
+        this.updateUI();
+        this.log('Welcome back! Your adventure continues.');
+      }
+    }
+
+    showWelcomeModal() {
+      const html = `
+        <div style="text-align:center;padding:20px">
+          <h2 style="color:#4fc3f7;margin-bottom:16px">⚔️ Welcome to Sword Art Online ⚔️</h2>
+          <div style="margin-bottom:12px;line-height:1.6">
+            You are trapped in a deadly VRMMO. The only way out is to reach Floor 100 and defeat the final boss.
+          </div>
+          <div class="muted" style="margin-bottom:20px">
+            Death in the game means death in real life. Fight wisely, explore carefully, and never give up.
+          </div>
+          <div style="background:rgba(255,255,255,0.05);padding:12px;border-radius:8px;margin-top:16px;text-align:left">
+            <strong>Game Features:</strong><br>
+            ⚔️ Turn-based combat with skills<br>
+            🏰 100 floors with unique themes<br>
+            📜 Quests, NPCs, and story events<br>
+            🎯 Achievements and daily goals<br>
+            🛡️ Equipment upgrades and crafting<br>
+            🏆 Boss raids and field bosses
+          </div>
+        </div>
+      `;
+      this.showModal('Welcome to SAO', html, [
+        {text:'Begin Tutorial', action:()=> this.showNameInput()},
+        {text:'Skip (Experienced Players)', action:()=> {
+          this.player.tutorialComplete = true;
+          this.hideModal();
+          this.logEvent('info','Tutorial skipped. Good luck, and stay alive!');
+          this.updateUI();
+        }}
+      ]);
+    }
+
+    showNameInput() {
+      const html = `
+        <div style="padding:12px">
+          <div style="margin-bottom:12px">Choose your in-game name. This will be your identity in Aincrad.</div>
+          <input type="text" id="player-name-input" placeholder="Enter your name" 
+                 style="width:100%;padding:10px;font-size:16px;border-radius:6px;border:1px solid rgba(255,255,255,0.2);background:rgba(0,0,0,0.3);color:#fff" 
+                 maxlength="20" />
+          <div class="muted" style="margin-top:8px;font-size:12px">2-20 characters. Choose wisely!</div>
+        </div>
+      `;
+      this.showModal('Choose Your Name', html, [
+        {text:'Confirm', action:()=> {
+          const input = document.getElementById('player-name-input');
+          const name = (input?.value || '').trim();
+          if(name.length < 2) { this.logEvent('info','Name must be at least 2 characters.'); return; }
+          this.player.name = name;
+          this.hideModal();
+          this.logEvent('info', `Welcome, ${name}!`);
+          this.showArchetypeSelection();
+          this.updateUI();
+        }},
+        {text:'Skip (use Player)', action:()=> { 
+          this.player.name = 'Player'; 
+          this.hideModal(); 
+          this.showArchetypeSelection(); 
+          this.updateUI();
+        }}
+      ]);
+      // Auto-focus input
+      setTimeout(()=> {
+        const input = document.getElementById('player-name-input');
+        if(input) input.focus();
+      }, 100);
+    }
+
+    showArchetypeSelection() {
+      this.logEvent('info', 'Choose your archetype to define your playstyle.');
+      this.showArchetypeModal();
+    }
+
+    showTutorialStep1() {
+      const html = `
+        <div style="padding:12px">
+          <h3 style="color:#4fc3f7;margin-bottom:12px">Tutorial: Exploration</h3>
+          <div style="margin:12px 0;line-height:1.6">
+            You are now on <strong>Floor 1: Town of Beginnings</strong>. To progress, you must explore and fight monsters.
+          </div>
+          <ul style="margin-left:20px;line-height:1.8">
+            <li><strong>Explore Field:</strong> Find monsters and resources on the floor.</li>
+            <li><strong>Explore Dungeon:</strong> Tougher enemies, but better rewards. Unlock by exploring the field first.</li>
+            <li><strong>Go to Town:</strong> Rest, shop, and manage quests.</li>
+          </ul>
+          <div class="muted" style="margin-top:12px;padding:8px;background:rgba(79,195,247,0.1);border-left:3px solid #4fc3f7">
+            💡 Tip: Start by exploring the field to gain XP and gold!
+          </div>
+        </div>
+      `;
+      this.showModal('Tutorial: Exploration', html, [{text:'Next: Combat →', action:()=> this.showTutorialStep2()}]);
+    }
+
+    showTutorialStep2() {
+      const html = `
+        <div style="padding:12px">
+          <h3 style="color:#4fc3f7;margin-bottom:12px">Tutorial: Turn-Based Combat</h3>
+          <div style="margin:12px 0;line-height:1.6">
+            When you encounter an enemy, combat begins. You must choose <strong>one action per turn</strong>:
+          </div>
+          <ul style="margin-left:20px;line-height:1.8">
+            <li><strong>⚔️ Attack:</strong> Deal damage (may crit based on LUCK/DEX).</li>
+            <li><strong>🛡️ Defend:</strong> Reduce next incoming damage by 50%.</li>
+            <li><strong>🏃 Flee:</strong> Attempt to escape (success based on DEX). Cannot flee from bosses!</li>
+            <li><strong>✨ Use Skill:</strong> Powerful attacks or buffs (has cooldowns).</li>
+            <li><strong>🧪 Use Item:</strong> Heal or cure status effects.</li>
+          </ul>
+          <div class="muted" style="margin-top:12px;padding:8px;background:rgba(79,195,247,0.1);border-left:3px solid #4fc3f7">
+            💡 Tip: Build combos! Land 3+ hits in a row for bonus damage (up to ×10 for +50% damage + HP restore).
+          </div>
+        </div>
+      `;
+      this.showModal('Tutorial: Combat', html, [{text:'Next: Leveling →', action:()=> this.showTutorialStep3()}]);
+    }
+
+    showTutorialStep3() {
+      const html = `
+        <div style="padding:12px">
+          <h3 style="color:#4fc3f7;margin-bottom:12px">Tutorial: Leveling Up</h3>
+          <div style="margin:12px 0;line-height:1.6">
+            Defeat enemies to gain <strong>XP</strong>. When you level up, you get <strong>2 Stat Points</strong> to allocate:
+          </div>
+          <ul style="margin-left:20px;line-height:1.8">
+            <li><strong>+5 Max HP:</strong> Increases survivability.</li>
+            <li><strong>+1 ATK:</strong> Deal more damage per hit.</li>
+            <li><strong>+1 DEF:</strong> Reduce incoming damage.</li>
+          </ul>
+          <div style="margin:12px 0;line-height:1.6">
+            Every <strong>3 levels</strong>, you earn <strong>1 Skill Point</strong> to unlock:
+          </div>
+          <ul style="margin-left:20px;line-height:1.8">
+            <li><strong>Active Skills:</strong> Vertical Arc, Quick Heal, Burst Strike</li>
+            <li><strong>Passive Skills:</strong> Battle Focus (+crit), Survival Instinct (+HP)</li>
+          </ul>
+          <div class="muted" style="margin-top:12px;padding:8px;background:rgba(79,195,247,0.1);border-left:3px solid #4fc3f7">
+            💡 Tip: Balance HP, ATK, and DEF based on your archetype! Use the "Allocate Stats" button when you have points.
+          </div>
+        </div>
+      `;
+      this.showModal('Tutorial: Leveling', html, [{text:'Next: Town Services →', action:()=> this.showTutorialStep4()}]);
+    }
+
+    showTutorialStep4() {
+      const html = `
+        <div style="padding:12px">
+          <h3 style="color:#4fc3f7;margin-bottom:12px">Tutorial: Town Hub</h3>
+          <div style="margin:12px 0;line-height:1.6">
+            Return to town to access important services:
+          </div>
+          <ul style="margin-left:20px;line-height:1.8">
+            <li><strong>🔨 Blacksmith:</strong> Upgrade weapons (+ATK) and fortify armor (+DEF) using materials and gold.</li>
+            <li><strong>🛒 Market:</strong> Buy consumables and equipment; sell unwanted items for gold.</li>
+            <li><strong>📜 Quest Board:</strong> Accept quests for XP, gold, and rewards. Complete daily goals for bonuses.</li>
+            <li><strong>📦 Storage:</strong> Store extra items in your infinite stash.</li>
+            <li><strong>👑 Boss Arena:</strong> Use Boss Keys (from dungeons) to fight floor bosses and unlock the next floor.</li>
+            <li><strong>🗺️ Travel:</strong> Change your current floor after clearing boss fights.</li>
+          </ul>
+          <div class="muted" style="margin-top:12px;padding:8px;background:rgba(79,195,247,0.1);border-left:3px solid #4fc3f7">
+            💡 Tip: HP is fully restored when entering town!
+          </div>
+        </div>
+      `;
+      this.showModal('Tutorial: Town Hub', html, [{text:'Next: Quests →', action:()=> this.showTutorialStep5()}]);
+    }
+
+    showTutorialStep5() {
+      const html = `
+        <div style="padding:12px">
+          <h3 style="color:#4fc3f7;margin-bottom:12px">Tutorial: Quest System</h3>
+          <div style="margin:12px 0;line-height:1.6">
+            Quests give you goals and rewards. There are several types:
+          </div>
+          <ul style="margin-left:20px;line-height:1.8">
+            <li><strong>Kill Quests:</strong> Defeat X monsters.</li>
+            <li><strong>Gather Quests:</strong> Collect X resources from exploration.</li>
+            <li><strong>Escort Quests:</strong> Protect an NPC for X encounters (no fleeing!).</li>
+            <li><strong>Delivery Quests:</strong> Bring a parcel to a specific floor.</li>
+          </ul>
+          <div style="margin:12px 0;line-height:1.6;background:rgba(255,193,7,0.1);padding:10px;border-left:3px solid #ffc107">
+            <strong>⭐ Daily Goals:</strong> Complete 3 tasks daily (win fights, clear dungeons, deliver parcels) to build a <strong>streak</strong> for +3% XP!
+          </div>
+          <div class="muted" style="margin-top:12px;padding:8px;background:rgba(79,195,247,0.1);border-left:3px solid #4fc3f7">
+            💡 Tip: Active quests appear in the Quest Tracker. Each quest can only be accepted once!
+          </div>
+        </div>
+      `;
+      this.showModal('Tutorial: Quests', html, [{text:'Next: Achievements →', action:()=> this.showTutorialStep6()}]);
+    }
+
+    showTutorialStep6() {
+      const html = `
+        <div style="padding:12px">
+          <h3 style="color:#4fc3f7;margin-bottom:12px">Tutorial: Achievements & Combos</h3>
+          <div style="margin:12px 0;line-height:1.6">
+            <strong>🏆 Achievements:</strong> Unlock 30+ achievements by reaching milestones:
+          </div>
+          <ul style="margin-left:20px;line-height:1.8">
+            <li>Defeat 10/50/100 enemies</li>
+            <li>Reach level 10/25/50</li>
+            <li>Land 10 critical hits</li>
+            <li>Clear 5/10 floor bosses</li>
+          </ul>
+          <div style="margin:12px 0;line-height:1.6">
+            Each achievement grants <strong>50 gold</strong>!
+          </div>
+          <div style="margin:12px 0;line-height:1.6;background:rgba(229,57,53,0.1);padding:10px;border-left:3px solid #e53935">
+            <strong>⚔️ Combo System:</strong> Land consecutive hits without taking damage:
+            <ul style="margin:8px 0 0 20px;line-height:1.6">
+              <li><strong>×3 Combo:</strong> +10% damage</li>
+              <li><strong>×5 Combo:</strong> +25% damage + guaranteed crit</li>
+              <li><strong>×10 Combo:</strong> +50% damage + restore 50% HP</li>
+            </ul>
+          </div>
+          <div class="muted" style="margin-top:12px;padding:8px;background:rgba(79,195,247,0.1);border-left:3px solid #4fc3f7">
+            💡 Tip: Dodge or defend to preserve your combo streak!
+          </div>
+        </div>
+      `;
+      this.showModal('Tutorial: Achievements & Combos', html, [{text:'Next: Floor Progression →', action:()=> this.showTutorialStep7()}]);
+    }
+
+    showTutorialStep7() {
+      const html = `
+        <div style="padding:12px">
+          <h3 style="color:#4fc3f7;margin-bottom:12px">Tutorial: Floor Progression</h3>
+          <div style="margin:12px 0;line-height:1.6">
+            To unlock the next floor, you must defeat the <strong>Floor Boss</strong>:
+          </div>
+          <ol style="margin-left:20px;line-height:1.8">
+            <li>Explore the <strong>field</strong> several times to unlock the <strong>dungeon</strong>.</li>
+            <li>Progress through the dungeon to fight a <strong>miniboss</strong>.</li>
+            <li>The miniboss drops a <strong>Boss Key</strong> for the current floor.</li>
+            <li>Return to town and use the Boss Key at the <strong>Boss Arena</strong>.</li>
+            <li>Defeat the arena boss to clear the floor and unlock the next one!</li>
+            <li>Use <strong>Travel</strong> in town to change your current floor.</li>
+          </ol>
+          <div style="margin:12px 0;background:rgba(255,193,7,0.1);border-left:3px solid #ffc107;padding:10px">
+            <strong>⚠️ Warning:</strong> Field bosses (2% encounter chance) are rare, powerful enemies with unique drops. You cannot flee from them!
+          </div>
+          <div style="margin:12px 0;background:rgba(76,175,80,0.1);border-left:3px solid #4caf50;padding:10px">
+            <strong>💾 Auto-Save:</strong> Your progress is automatically saved every 30 seconds and on major events!
+          </div>
+          <div class="muted" style="margin-top:12px;padding:8px;background:rgba(79,195,247,0.1);border-left:3px solid #4fc3f7">
+            💡 Tip: Each floor has a unique theme, enemies, and boss. Prepare well before boss fights!
+          </div>
+        </div>
+      `;
+      this.showModal('Tutorial: Floor Progression', html, [
+        {text:'Start Playing! 🎮', action:()=> {
+          this.hideModal();
+          this.player.tutorialComplete = true;
+          this.logEvent('quest', '🎮 Tutorial complete! Your journey begins now. Good luck, and stay alive!');
+          this.save(); // Save tutorial completion
+          this.updateUI();
+        }}
+      ]);
     }
   }
 
