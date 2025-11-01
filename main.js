@@ -599,7 +599,15 @@ class Game {
       this.logEl.appendChild(div);
       // Trim log to last 120 entries
       this.trimLog(120);
+      // Auto-scroll log entries to bottom
       this.logEl.scrollTop = this.logEl.scrollHeight;
+      // Also scroll adventure log container for mobile view
+      const adventureLog = document.getElementById('adventure-log');
+      if(adventureLog) {
+        setTimeout(() => {
+          adventureLog.scrollTop = adventureLog.scrollHeight;
+        }, 50);
+      }
     }
 
     // enhanced log with icons and detail
@@ -1555,6 +1563,10 @@ class Game {
       if(!trackerList) return;
       const p = this.player;
       const completed = p.completedQuests || [];
+      
+      // Update quest count display in mobile summary
+      const questCountDisplay = document.getElementById('quest-count-display');
+      if(questCountDisplay) questCountDisplay.textContent = (p.quests || []).length + completed.length;
       
       // Build HTML for active quests
       trackerList.innerHTML = '';

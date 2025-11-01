@@ -7,96 +7,101 @@
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
-  <header>
-    <h1>SAO — Text Adventure (Demo)</h1>
-  </header>
-  <main>
-    <section id="left">
+  <!-- Mobile-optimized game container -->
+  <div id="game-container">
+    <!-- Top: Scrollable Adventure Log -->
+    <div id="adventure-log">
+      <header>
+        <h1>SAO — Text Adventure</h1>
+      </header>
+      
+      <!-- Player Status (compact for mobile) -->
       <div id="status" class="card">
-        <h2>Player</h2>
-  <div id="player-name">Player</div>
-  <div class="stat">Level: <span id="player-level">1</span></div>
-  <div class="stat">XP: <span id="player-xp">0</span> / <span id="player-nextxp">100</span></div>
-  <div class="bar-wrap"><div class="bar-label">XP</div><div class="bar-outer"><div id="xp-bar" class="bar-inner"></div></div></div>
-  <div class="stat">HP: <span id="player-hp">10</span> / <span id="player-maxhp">10</span></div>
-  <div class="bar-wrap"><div class="bar-label">HP</div><div class="bar-outer"><div id="hp-bar" class="bar-inner"></div></div></div>
-  <div class="stat"><button id="quick-heal" class="small-btn">Use Herb</button></div>
-        <div class="stat">Atk: <span id="player-atk">2</span></div>
-        <div class="stat">Def: <span id="player-def">1</span></div>
-    <div class="stat">Dex: <span id="player-dex">1</span></div>
-    <div class="stat">Luck: <span id="player-luck">0</span></div>
-    <div class="stat">Archetype: <span id="player-archetype">None</span> <button id="btn-archetype" class="small-btn">Choose</button></div>
-    <div id="equip-preview" class="equip-preview" style="display:none"></div>
-        <div class="stat">Gold: <span id="player-gold">0</span></div>
-        <div class="stat">Floor: <span id="player-floor">1</span></div>
-  <div class="stat">Quests: <span id="quest-count">0</span></div>
-  <div class="stat">Achievements: <span id="achievement-count">0</span>/<span id="achievement-total">30</span> <button id="btn-achievements" class="small-btn">View</button></div>
-  <div class="stat">Unspent Points: <span id="player-points">0</span></div>
-  <div class="stat">Tokens: <span id="player-tokens">0</span></div>
-  <div class="stat">Skill Points: <span id="player-skillpoints">0</span> <button id="btn-skills" class="small-btn">Skills</button></div>
-          <div class="actions" id="main-actions">
-          <button id="btn-field">Explore Field</button>
-          <button id="btn-dungeon">Explore Dungeon</button>
-          <button id="btn-town">Go to Town</button>
-          <button id="btn-npc">Talk to NPC</button>
-          <button id="btn-rest">Rest</button>
-          <button id="btn-save">Save</button>
-          <button id="btn-load">Load</button>
-        </div>
-          <div class="actions" id="town-actions" style="display:none;">
-            <h3>Town Services</h3>
-            <button id="btn-blacksmith">Blacksmith</button>
-            <button id="btn-market">Market</button>
-            <button id="btn-storage">Storage</button>
-            <button id="btn-quest-board">Quest Board</button>
-            <button id="btn-field-return">Return to Field</button>
+        <h2>Player Status</h2>
+        <div id="player-name">Player</div>
+        <div class="stat">Lv <span id="player-level">1</span> | HP <span id="player-hp">10</span>/<span id="player-maxhp">10</span> | Gold <span id="player-gold">0</span></div>
+        <div class="bar-wrap"><div class="bar-outer"><div id="hp-bar" class="bar-inner"></div></div></div>
+        <div class="stat">XP <span id="player-xp">0</span>/<span id="player-nextxp">100</span> | Floor <span id="player-floor">1</span></div>
+        <div class="bar-wrap"><div class="bar-outer"><div id="xp-bar" class="bar-inner"></div></div></div>
+        <details class="stat-details">
+          <summary>Stats & Equipment</summary>
+          <div class="stat">Atk: <span id="player-atk">2</span> | Def: <span id="player-def">1</span> | Dex: <span id="player-dex">1</span> | Luck: <span id="player-luck">0</span></div>
+          <div class="stat">Archetype: <span id="player-archetype">None</span> <button id="btn-archetype" class="small-btn">Choose</button></div>
+          <div id="equip-preview" class="equip-preview" style="display:none"></div>
+          <div class="stat">Quests: <span id="quest-count">0</span> | Achievements: <span id="achievement-count">0</span>/<span id="achievement-total">30</span></div>
+          <div class="stat">Points: <span id="player-points">0</span> | Tokens: <span id="player-tokens">0</span> | SP: <span id="player-skillpoints">0</span></div>
+          <div class="stat">
+            <button id="btn-skills" class="small-btn">Skills</button>
+            <button id="btn-achievements" class="small-btn">Achievements</button>
+            <button id="quick-heal" class="small-btn">Use Herb</button>
           </div>
-          <div class="actions combat-actions" id="combat-actions" style="display:none;">
-            <h3>Combat Actions</h3>
-            <button id="btn-attack">Attack</button>
-            <button id="btn-skill-combat">Use Skill</button>
-            <button id="btn-use-item">Use Item</button>
-            <button id="btn-defend">Defend</button>
-            <button id="btn-flee">Flee</button>
-          </div>
+        </details>
       </div>
 
-      <div id="quests" class="card">
-  <h2>Quests</h2>
-  <ul id="quest-list"></ul>
-  <div id="quest-progress-bars"></div>
+      <!-- Quest Tracker (collapsible on mobile) -->
+      <details id="quest-tracker-mobile" class="card">
+        <summary><h2>Active Quests (<span id="quest-count-display">0</span>)</h2></summary>
+        <div id="quest-tracker-list"></div>
+      </details>
+
+      <!-- Action Log -->
+      <div id="log" class="card">
+        <h2>Adventure Log</h2>
+        <div id="log-entries" class="log-entries"></div>
       </div>
-      
-      <div id="inventory" class="card">
-        <h2>Inventory</h2>
+
+      <!-- Inventory (collapsible) -->
+      <details id="inventory-mobile" class="card">
+        <summary><h2>Inventory</h2></summary>
         <div style="display:flex;align-items:center;gap:8px">
           <ul id="inventory-list" style="flex:1;margin:0;padding:0;list-style:none"></ul>
           <div id="inventory-badge" aria-hidden="true" class="new-badge" style="display:none">New</div>
         </div>
-        <div class="help">Items can be used, equipped or dropped. Equipment affects ATK/DEF.</div>
-      </div>
-    </section>
+      </details>
 
-    <section id="right">
-      <!-- Quest Tracker Sidebar -->
-      <div id="quest-tracker" class="card quest-tracker">
-        <h2>Active Quests</h2>
-        <div id="quest-tracker-list"></div>
-        <div class="help">Click quest to view details</div>
+      <!-- Quests List (collapsible) -->
+      <details id="quests-mobile" class="card">
+        <summary><h2>Quest Log</h2></summary>
+        <ul id="quest-list"></ul>
+        <div id="quest-progress-bars"></div>
+      </details>
+    </div>
+
+    <!-- Bottom: Fixed Command Panel -->
+    <div id="command-panel">
+      <div class="actions" id="main-actions">
+        <button id="btn-field">Explore Field</button>
+        <button id="btn-dungeon">Explore Dungeon</button>
+        <button id="btn-town">Town</button>
+        <button id="btn-npc">NPCs</button>
+      </div>
+      
+      <div class="actions" id="town-actions" style="display:none;">
+        <button id="btn-blacksmith">Blacksmith</button>
+        <button id="btn-market">Market</button>
+        <button id="btn-storage">Storage</button>
+        <button id="btn-quest-board">Quests</button>
+        <button id="btn-field-return">Leave Town</button>
+      </div>
+      
+      <div class="actions combat-actions" id="combat-actions" style="display:none;">
+        <button id="btn-attack">Attack</button>
+        <button id="btn-skill-combat">Skill</button>
+        <button id="btn-use-item">Item</button>
+        <button id="btn-defend">Defend</button>
+        <button id="btn-flee">Flee</button>
       </div>
 
-      <div id="log" class="card">
-        <h2>Action Log</h2>
-        <div id="log-entries" class="log-entries"></div>
+      <div class="command-footer">
+        <button id="btn-rest" class="utility-btn">Rest</button>
+        <button id="btn-save" class="utility-btn">Save</button>
+        <button id="btn-load" class="utility-btn">Load</button>
+        <label class="auto-explore-toggle">
+          <input type="checkbox" id="auto-explore" /> Auto
+        </label>
       </div>
-
-      <div id="controls" class="card">
-        <h2>Controls</h2>
-        <label><input type="checkbox" id="auto-explore" /> Auto-explore (field every 3s)</label>
-        <div class="help">Tip: Use Explore buttons to find enemies, complete quests and gain XP. Floors scale to 100.</div>
-      </div>
-    </section>
-  </main>
+    </div>
+  </div>
 
   <!-- Achievement Popup -->
   <div id="achievement-popup" class="achievement-popup">
@@ -114,9 +119,10 @@
     <div class="combo-text"></div>
   </div>
 
-  <footer>
-    <small>Demo text-based SAO game. Save data in browser localStorage.</small>
-  </footer>
+  <!-- Combo Overlay -->
+  <div id="combo-overlay" class="combo-overlay">
+    <div class="combo-text"></div>
+  </div>
 
   <!-- Modal for NPCs and dialogs -->
   <div id="modal" class="modal" aria-hidden="true">
