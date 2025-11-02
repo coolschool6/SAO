@@ -5,10 +5,47 @@
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>SAO: Text Adventure (Demo)</title>
   <link rel="stylesheet" href="styles.css" />
+  <link rel="stylesheet" href="combat-styles.css" />
+  <link rel="stylesheet" href="battle-screen.css" />
+  <script src="battle-adapter.js"></script>
 </head>
 <body>
+  <!-- Loading Screen -->
+  <div id="loading-screen" class="loading-screen">
+    <div class="loading-panel">
+      <div class="loading-logo">
+        <div class="logo-icon">⚔️</div>
+        <div class="logo-text">SWORD ART ONLINE</div>
+        <div class="logo-subtitle">Text Adventure</div>
+      </div>
+      <div class="loading-spinner">
+        <div class="spinner-ring"></div>
+        <div class="spinner-ring"></div>
+        <div class="spinner-ring"></div>
+      </div>
+      <div class="loading-tip">Initializing game systems...</div>
+    </div>
+  </div>
+
   <!-- Mobile-optimized game container -->
   <div id="game-container">
+    <!-- Compact sticky HUD (mobile-first, minimal clutter) -->
+    <div id="top-hud" class="hud" aria-label="Player HUD">
+      <div class="hud-left">
+        <span id="hud-name">Player</span> · Lv <span id="hud-level">1</span> · F<span id="hud-floor">1</span>
+      </div>
+      <div class="hud-mid" aria-hidden="false">
+        <div class="hud-bar hp" title="HP">
+          <div id="hud-hp-bar" style="width:50%"></div>
+        </div>
+        <div class="hud-bar xp" title="XP">
+          <div id="hud-xp-bar" style="width:10%"></div>
+        </div>
+      </div>
+      <div class="hud-right">
+        💰 <span id="hud-gold">0</span>G
+      </div>
+    </div>
     <!-- Top: Scrollable Adventure Log -->
     <div id="adventure-log">
       <header>
@@ -28,6 +65,8 @@
           <div class="stat">Atk: <span id="player-atk">2</span> | Def: <span id="player-def">1</span> | Dex: <span id="player-dex">1</span> | Luck: <span id="player-luck">0</span></div>
           <div class="stat">Archetype: <span id="player-archetype">None</span> <button id="btn-archetype" class="small-btn">Choose</button></div>
           <div id="equip-preview" class="equip-preview" style="display:none"></div>
+          <!-- Faction Reputation (kept inside details to avoid clutter) -->
+          <div class="stat"><strong>Factions:</strong> Faune <span id="rep-faune">0</span> | Fae <span id="rep-fae">0</span> | Merchants <span id="rep-merchants">0</span></div>
           <div class="stat">Quests: <span id="quest-count">0</span> | Achievements: <span id="achievement-count">0</span>/<span id="achievement-total">30</span></div>
           <div class="stat">Points: <span id="player-points">0</span> | Tokens: <span id="player-tokens">0</span> | SP: <span id="player-skillpoints">0</span></div>
           <div class="stat">
@@ -121,6 +160,191 @@
   <!-- Combo Overlay -->
   <div id="combo-overlay" class="combo-overlay">
     <div class="combo-text"></div>
+  </div>
+
+  <!-- ============================================
+       OLD COMBAT UI - COMMENTED OUT FOR REPLACEMENT
+       ============================================ -->
+  <!-- 
+  <div id="combat-stage" class="combat-stage" style="display:none;">
+    <div id="combat-log-overlay" class="combat-log-overlay">
+      <div id="combat-log-entries" class="combat-log-entries"></div>
+    </div>
+
+    <div id="player-combatant" class="combatant player-side">
+      <div class="combatant-sprite player-sprite">⚔️</div>
+      <div class="combatant-info">
+        <div class="combatant-name" id="player-combat-name">Player</div>
+        <div class="stat-bar-row">
+          <div class="stat-bar-label">HP</div>
+          <div class="stat-bar hp-bar">
+            <div class="stat-bar-fill" id="player-combat-hp-bar" style="width:100%"></div>
+            <div class="stat-bar-text" id="player-combat-hp-text">100/100</div>
+          </div>
+        </div>
+        <div class="stat-bar-row">
+          <div class="stat-bar-label">SP</div>
+          <div class="stat-bar sp-bar">
+            <div class="stat-bar-fill" id="player-combat-sp-bar" style="width:100%"></div>
+            <div class="stat-bar-text" id="player-combat-sp-text">50/50</div>
+          </div>
+        </div>
+        <div class="status-icons" id="player-status-icons"></div>
+      </div>
+    </div>
+
+    <div id="enemy-combatant" class="combatant enemy-side">
+      <div class="combatant-sprite enemy-sprite">👹</div>
+      <div class="combatant-info">
+        <div class="combatant-name" id="enemy-combat-name">Enemy</div>
+        <div class="stat-bar-row">
+          <div class="stat-bar-label">HP</div>
+          <div class="stat-bar hp-bar enemy-hp">
+            <div class="stat-bar-fill" id="enemy-combat-hp-bar" style="width:100%"></div>
+            <div class="stat-bar-text" id="enemy-combat-hp-text">80/80</div>
+          </div>
+        </div>
+        <div class="enemy-intent" id="enemy-intent">
+          <span class="intent-icon">⚔️</span>
+          <span class="intent-text">Preparing...</span>
+        </div>
+        <div class="status-icons" id="enemy-status-icons"></div>
+      </div>
+    </div>
+
+    <div id="turn-indicator" class="turn-indicator">
+      <div class="turn-text">YOUR TURN</div>
+    </div>
+
+    <div id="damage-numbers" class="damage-numbers"></div>
+  </div>
+  -->
+
+  <!-- ============================================
+       NEW PROFESSIONAL BATTLE SCREEN
+       ============================================ -->
+  <div id="battle-screen-container" class="battle-screen-container" style="display:none;">
+    <!-- Atmospheric Background Layer -->
+    <div id="battle-background" class="battle-background"></div>
+
+    <!-- Top Info Banner (Combat Log) -->
+    <div id="top-info-banner" class="top-info-banner">
+      <div id="battle-log-text" class="battle-log-text">The battle begins!</div>
+    </div>
+
+    <!-- Player Character Display (Left Side) -->
+    <div id="player-display" class="player-display">
+      <!-- Character Art Placeholder -->
+      <div id="player-character-art" class="player-character-art">
+        <div class="character-placeholder">
+          <span class="character-icon">⚔️</span>
+          <div class="character-label" id="player-character-label">KIRITO</div>
+        </div>
+      </div>
+      
+      <!-- Underbar directly beneath player art -->
+      <div id="player-underbar" class="underbar player-underbar">
+        <div class="underbar-fill" id="player-under-hp-bar" style="width:100%"></div>
+        <div class="underbar-text" id="player-under-hp-text">100/100</div>
+      </div>
+      
+      <!-- Player Stats Overlay -->
+      <div id="player-stats-overlay" class="player-stats-overlay">
+        <!-- HP Bar -->
+        <div class="stat-display hp-display">
+          <div class="stat-label">HP</div>
+          <div class="stat-bar-frame">
+            <div id="player-hp-bar" class="stat-bar-fill hp-fill" style="width:100%"></div>
+            <div id="player-hp-text" class="stat-bar-value">450/600</div>
+          </div>
+        </div>
+        
+        <!-- SP Bar -->
+        <div class="stat-display sp-display">
+          <div class="stat-label">SP</div>
+          <div class="stat-bar-frame">
+            <div id="player-sp-bar" class="stat-bar-fill sp-fill" style="width:100%"></div>
+            <div id="player-sp-text" class="stat-bar-value">50/50</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Enemy Character Display (Right Side) -->
+    <div id="enemy-display" class="enemy-display">
+      <!-- Enemy Art Placeholder -->
+      <div id="enemy-character-art" class="enemy-character-art">
+        <div class="character-placeholder enemy-placeholder">
+          <span class="character-icon">🐗</span>
+          <div class="character-label enemy-label">FRENZY BOAR</div>
+        </div>
+      </div>
+      
+      <!-- Underbar directly beneath enemy art -->
+      <div id="enemy-underbar" class="underbar enemy-underbar">
+        <div class="underbar-fill" id="enemy-under-hp-bar" style="width:100%"></div>
+        <div class="underbar-text" id="enemy-under-hp-text">100%</div>
+      </div>
+      
+      <!-- Enemy Stats Overlay -->
+      <div id="enemy-stats-overlay" class="enemy-stats-overlay">
+        <div id="enemy-name-level" class="enemy-name-level">Frenzy Boar LVL 12</div>
+        
+        <!-- Enemy HP Bar with Percentage -->
+        <div class="stat-display hp-display enemy-hp-display">
+          <div class="stat-bar-frame">
+            <div id="enemy-hp-bar" class="stat-bar-fill enemy-hp-fill" style="width:100%"></div>
+            <div id="enemy-hp-percentage" class="stat-bar-value">100%</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Combo Meter Display -->
+    <div id="combo-meter" class="combo-meter">
+      <div class="combo-label">COMBO</div>
+      <div class="combo-value">x1</div>
+    </div>
+
+    <!-- Player Action Menu (Bottom Bar) -->
+    <div id="player-action-menu" class="player-action-menu">
+      <button id="attack-btn" class="action-btn attack-btn">
+        <span class="btn-icon">⚔️</span>
+        <span class="btn-text">ATTACK</span>
+      </button>
+      <button id="skills-btn" class="action-btn skills-btn">
+        <span class="btn-icon">✨</span>
+        <span class="btn-text">SKILLS</span>
+      </button>
+      <button id="items-btn" class="action-btn items-btn">
+        <span class="btn-icon">🧪</span>
+        <span class="btn-text">ITEMS</span>
+      </button>
+      <button id="defend-btn" class="action-btn defend-btn">
+        <span class="btn-icon">🛡️</span>
+        <span class="btn-text">DEFEND</span>
+      </button>
+      <button id="run-btn" class="action-btn run-btn">
+        <span class="btn-icon">🏃</span>
+        <span class="btn-text">RUN</span>
+      </button>
+    </div>
+
+    <!-- "YOUR TURN" Overlay Indicator -->
+    <div id="turn-indicator" class="turn-indicator-new">
+      <div class="turn-text-new">YOUR TURN</div>
+    </div>
+
+    <!-- Damage Numbers Container -->
+    <div id="damage-numbers" class="damage-numbers-new"></div>
+
+    <!-- Decorative UI Frames -->
+    <div class="ui-frame-corners">
+      <div class="corner-tl"></div>
+      <div class="corner-tr"></div>
+      <div class="corner-bl"></div>
+      <div class="corner-br"></div>
+    </div>
   </div>
 
   <!-- Modal for NPCs and dialogs -->

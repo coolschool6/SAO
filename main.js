@@ -1,100 +1,12 @@
 // Simple text-based SAO-inspired adventure (client-side only)
 (() => {
-  const MAX_FLOORS = 100;
-  const SAVE_KEY = 'sao_text_demo_v1';
-  // Increment when the save schema meaningfully changes
-  const SAVE_VERSION = 2;
+  // Note: MAX_FLOORS, SAVE_KEY, FLOOR_DEFS, SKILLS already defined in config.js
+  
+  const SAVE_VERSION = 2; // Increment when save schema changes
 
-  // First 10 floor definitions (unique themes, enemies, bosses, and quests)
-  const FLOOR_DEFS = {
-    1: {
-      name: 'Green Plains', theme: 'meadow', dungeonRooms: 3,
-      enemies: [
-        {name:'Slime',hpMul:0.8,atkMul:0.6,exp:6,gold:4},
-        {name:'Field Hare',hpMul:1.0,atkMul:0.8,exp:8,gold:6},
-        {name:'Giant Beetle',hpMul:1.2,atkMul:1.0,exp:10,gold:8}
-      ],
-      boss: {id:'boss1',name:'Slime King',hpMul:6,atk:4,def:1,exp:120,gold:80},
-      quests: [{id:'f1q1',title:'Clear the Meadow',desc:'Defeat 8 Slimes or field monsters on Floor 1',type:'kill',target:8,reward:{xp:120,gold:80}}],
-      // Lightweight exploration events for added variety
-      events: [
-        { id:'hidden_shrine', name:'Hidden Shrine', type:'shrine', chance:0.08 },
-        { id:'ambush', name:'Ambush!', type:'ambush', chance:0.06 }
-      ]
-    },
-    2: {
-      name: 'Whispering Woods', theme:'forest', dungeonRooms:4,
-      enemies:[{name:'Forest Imp',hpMul:1.2,atkMul:1.0,exp:12,gold:8},{name:'Dire Wolf',hpMul:1.6,atkMul:1.4,exp:18,gold:12}],
-      boss:{id:'boss2',name:'Ancient Ent',hpMul:8,atk:6,def:2,exp:220,gold:150},
-      quests:[{id:'f2q1',title:'Gather Bark',desc:'Collect 4 Bark Fragments from the woods',type:'gather',target:4,reward:{xp:140,gold:90}}],
-      events: [
-        { id:'merchant_woods', name:'Wandering Merchant', type:'merchant', chance:0.10 },
-        { id:'lost_faune', name:'Lost Faune', type:'lost_faune', chance:0.07 },
-        { id:'ambush', name:'Ambush!', type:'ambush', chance:0.07 }
-      ]
-    },
-    3: {
-      name: 'Crystal Caves', theme:'cave', dungeonRooms:5,
-      enemies:[{name:'Cave Bat',hpMul:1.4,atkMul:1.2,exp:14,gold:10},{name:'Crystal Golem',hpMul:2.0,atkMul:1.6,exp:26,gold:20}],
-      boss:{id:'boss3',name:'Glimmer Golem',hpMul:10,atk:8,def:3,exp:360,gold:240},
-      quests:[{id:'f3q1',title:'Mine Crystals',desc:'Bring back 3 Raw Crystals from Floor 3 caves',type:'gather',target:3,reward:{xp:200,gold:140}}],
-      events: [
-        { id:'hidden_shrine', name:'Gleaming Shrine', type:'shrine', chance:0.09 },
-        { id:'ambush', name:'Cave Ambush', type:'ambush', chance:0.06 }
-      ]
-    },
-    4: {
-      name:'Sunken Marsh', theme:'swamp', dungeonRooms:5,
-      enemies:[{name:'Swamp Leech',hpMul:1.6,atkMul:1.4,exp:18,gold:12},{name:'Bog Troll',hpMul:2.4,atkMul:1.8,exp:30,gold:22}],
-      boss:{id:'boss4',name:'Marsh Colossus',hpMul:12,atk:9,def:4,exp:480,gold:320},
-      quests:[{id:'f4q1',title:'Clear the Bog',desc:'Defeat 6 swamp creatures on Floor 4',type:'kill',target:6,reward:{xp:260,gold:180}}]
-    },
-    5: {
-      name:'Scarlet Dunes', theme:'desert', dungeonRooms:6,
-      enemies:[{name:'Sand Serpent',hpMul:1.8,atkMul:1.6,exp:22,gold:16},{name:'Dune Raider',hpMul:2.2,atkMul:1.8,exp:28,gold:20}],
-      boss:{id:'boss5',name:'Scourge of Dunes',hpMul:14,atk:11,def:5,exp:640,gold:420},
-      quests:[{id:'f5q1',title:'Find the Oasis Relic',desc:'Recover the Oasis Relic from the dunes (1)',type:'gather',target:1,reward:{xp:320,gold:240}}]
-    },
-    6: {name:'Frost Reach',theme:'ice',dungeonRooms:6,
-      enemies:[{name:'Frostling',hpMul:2.0,atkMul:1.8,exp:30,gold:20},{name:'Ice Wolf',hpMul:2.6,atkMul:2.0,exp:36,gold:26}],
-      boss:{id:'boss6',name:'Glacier Wyrm',hpMul:16,atk:13,def:6,exp:840,gold:560},
-      quests:[{id:'f6q1',title:'Hunt the Ice Wolves',desc:'Defeat 5 Ice Wolves on Floor 6',type:'kill',target:5,reward:{xp:380,gold:260}}]
-    },
-    7: {name:'Sky Terrace',theme:'sky',dungeonRooms:4,
-      enemies:[{name:'Gale Sprite',hpMul:1.6,atkMul:1.6,exp:26,gold:18},{name:'Storm Drake',hpMul:3.0,atkMul:2.6,exp:48,gold:40}],
-      boss:{id:'boss7',name:'Tempest Drake',hpMul:18,atk:15,def:7,exp:960,gold:680},
-      quests:[{id:'f7q1',title:'Calm the Winds',desc:'Defeat 3 Storm Drakes patrolling the terrace',type:'kill',target:3,reward:{xp:420,gold:320}}]
-    },
-    8: {name:'Ember Hollow',theme:'volcano',dungeonRooms:7,
-      enemies:[{name:'Lava Imp',hpMul:2.2,atkMul:2.0,exp:34,gold:24},{name:'Magma Hound',hpMul:3.2,atkMul:2.8,exp:54,gold:44}],
-      boss:{id:'boss8',name:'Flame Sovereign',hpMul:20,atk:18,def:8,exp:1200,gold:900},
-      quests:[{id:'f8q1',title:'Quench the Flame',desc:'Gather 4 Cooling Stones from Ember Hollow',type:'gather',target:4,reward:{xp:520,gold:360}}]
-    },
-    9: {name:'Abyssal Reach',theme:'abyss',dungeonRooms:8,
-      enemies:[{name:'Abyss Crawler',hpMul:2.8,atkMul:2.4,exp:44,gold:32},{name:'Void Wraith',hpMul:3.8,atkMul:3.0,exp:64,gold:50}],
-      boss:{id:'boss9',name:'Abyssal Sovereign',hpMul:24,atk:20,def:10,exp:1600,gold:1200},
-      quests:[{id:'f9q1',title:'Purge the Depths',desc:'Defeat 7 Abyssal creatures on Floor 9',type:'kill',target:7,reward:{xp:720,gold:520}}]
-    },
-    10: {name:'Crystal Palace',theme:'crystal',dungeonRooms:10,
-      enemies:[{name:'Shardling',hpMul:3.0,atkMul:2.8,exp:56,gold:44},{name:'Prism Knight',hpMul:4.2,atkMul:3.6,exp:88,gold:72}],
-      boss:{id:'boss10',name:'Crystal Matriarch',hpMul:30,atk:24,def:12,exp:2200,gold:1800},
-      quests:[{id:'f10q1',title:'Claim the Crystal Heart',desc:'Obtain the Crystal Heart from the palace (1)',type:'gather',target:1,reward:{xp:1200,gold:900}}]
-    }
-  };
-
-  // Utility
+  // Utility functions
   function rand(min, max){ return Math.floor(Math.random()*(max-min+1))+min }
   function clamp(v,a,b){ return Math.max(a,Math.min(b,v)) }
-
-  // Skill definitions
-  const SKILLS = {
-    vertical_arc: {id:'vertical_arc',name:'Vertical Arc',type:'active',desc:'A heavy strike that deals 1.5x ATK damage. Cooldown: 2',cost:0,cooldown:2},
-    quick_heal: {id:'quick_heal',name:'Quick Heal',type:'active',desc:'Restore a portion of max HP. Cooldown:3',cost:0,cooldown:3},
-    stance_change: {id:'stance_change',name:'Stance Change',type:'active',desc:'Adopt a guarded stance: reduce damage taken for 2 turns. Cooldown:4',cost:0,cooldown:4},
-    burst_strike: {id:'burst_strike',name:'Burst Strike',type:'active',desc:'Deal 2x damage but suffer Weakened (take more damage) for 1 turn. Cooldown:4',cost:0,cooldown:4},
-    battle_focus: {id:'battle_focus',name:'Battle Focus',type:'passive',desc:'Small chance to critically strike more often.',cost:1},
-    survival_instinct: {id:'survival_instinct',name:'Survival Instinct',type:'passive',desc:'Increase max HP on level up.',cost:1}
-  };
 
   // Character Archetypes
   const ARCHETYPES = {
@@ -114,6 +26,8 @@
       this.floor = 1;
       this.maxHP = 10;
       this.hp = this.maxHP;
+      this.maxSP = 50; // Skill Points resource
+      this.sp = this.maxSP;
       this.atk = 2;
       this.def = 1;
       this.dex = 1;
@@ -156,6 +70,8 @@
       this.finishedOriginalQuestIds = [];
       // Tutorial completion flag
       this.tutorialComplete = false;
+      // Faction reputation (affects prices, events, quest access)
+      this.reputation = { faune: 0, fae: 0, merchants: 0 };
     }
     nextXp(){ return 50 + Math.floor(60 * (this.level-1) * 1.3) }
     addXp(amount){
@@ -164,6 +80,8 @@
       while(this.xp >= this.nextXp()){
         this.xp -= this.nextXp();
         this.level++;
+        this.maxSP += 5; // Increase max SP on level-up
+        this.sp = this.maxSP; // Restore SP to max
         this.pendingStatPoints = (this.pendingStatPoints || 0) + 2;
         // Award skill point every 3 levels (instead of every level)
         if(this.level % 3 === 0) this.skillPoints = (this.skillPoints || 0) + 1;
@@ -183,7 +101,7 @@
     toJSON(){
       return {
         name: this.name, level: this.level, xp: this.xp, gold: this.gold, floor: this.floor,
-        maxHP: this.maxHP, hp: this.hp, atk: this.atk, def: this.def, dex: this.dex, luck: this.luck,
+        maxHP: this.maxHP, hp: this.hp, maxSP: this.maxSP, sp: this.sp, atk: this.atk, def: this.def, dex: this.dex, luck: this.luck,
         quests: this.quests, pendingStatPoints: this.pendingStatPoints, skillPoints: this.skillPoints,
         skills: this.skills, skillCooldowns: this.skillCooldowns, statusEffects: this.statusEffects,
         stash: this.stash, completedQuests: this.completedQuests, tokens: this.tokens,
@@ -194,12 +112,18 @@
         questsCompleted: this.questsCompleted, nearDeathSurvival: this.nearDeathSurvival, equipmentUpgrades: this.equipmentUpgrades,
         npcsTalked: this.npcsTalked, archetype: this.archetype, comboCount: this.comboCount, maxCombo: this.maxCombo,
         acceptedOriginalQuestIds: this.acceptedOriginalQuestIds, finishedOriginalQuestIds: this.finishedOriginalQuestIds,
-        tutorialComplete: this.tutorialComplete
+        tutorialComplete: this.tutorialComplete,
+        reputation: this.reputation
       };
     }
     
     fromJSON(data){
       Object.assign(this, data);
+      // ensure reputation exists for old saves
+      if(!this.reputation) this.reputation = { faune: 0, fae: 0, merchants: 0 };
+      // ensure SP exists for old saves
+      if(!this.maxSP) this.maxSP = 50;
+      if(this.sp === undefined) this.sp = this.maxSP;
     }
   }
 
@@ -227,7 +151,9 @@
         migrated.currentFloor = (migrated.player && typeof migrated.player.floor === 'number') ? migrated.player.floor : 1;
       }
       // Future migrations by version number can be handled here
-      migrated.version = SAVE_VERSION;
+  // Ensure reputation exists
+  if(!migrated.player.reputation){ migrated.player.reputation = { faune: 0, fae: 0, merchants: 0 }; }
+  migrated.version = SAVE_VERSION;
       return migrated;
     }catch(e){
       // If anything goes wrong, fall back to a fresh scaffold
@@ -460,8 +386,11 @@ class Game {
         const price = Math.max(1, Math.floor(buyLike / 5)); // sell for roughly 1/5 of buy-like price (reduced from 1/4)
         return `<div style="display:flex;justify-content:space-between;align-items:center;padding:6px"><div>${it.name} ${it.count && it.count>1?('x'+it.count):''}${it.equipped? ' (equipped)':''}</div><div>${canSell?`<button data-sell="${it.id}" data-price="${price}">Sell (${price}g)</button>`:'<span class="muted">Equipped</span>'}</div></div>`;
       }).join('') || '<div class="muted">No items to sell.</div>';
+      const priceMul = this.getPriceMultiplier();
+      this.logEvent('info', `Merchant rates: ${Math.round(priceMul*100)}%`);
       const buyHtml = shopItems.map((it,i)=>{
-        const price = Math.max(1, Math.floor((it.basePrice || 20) + floor * 2));
+        const base = Math.max(1, Math.floor((it.basePrice || 20) + floor * 2));
+        const price = Math.max(1, Math.floor(base * priceMul));
         const desc = it.type + (it.atk?(' ATK+'+it.atk):'') + (it.def?(' DEF+'+it.def):'') + (it.heal?(' Heal:'+it.heal):'') + (it.cure?(' Cures:'+it.cure.join(',')):'');
         return `<div style="display:flex;justify-content:space-between;align-items:center;padding:6px"><div><strong>${it.name}</strong><div class="muted">${desc}</div></div><div><button data-buy="${i}" data-price="${price}">Buy (${price}g)</button></div></div>`;
       }).join('');
@@ -477,7 +406,10 @@ class Game {
           const hasSame = this.inventory.items.some(x=> x.type==='equipment' && x.name === it.name);
           if(hasSame){ this.logEvent('info', `You already own ${it.name}.`); return; }
         }
-        this.player.gold -= price; const added = this.inventory.addItem(Object.assign({}, it)); this.logEvent('info', `Bought ${added.name} for ${price} gold.`); this.showInventoryBadge(); this.updateUI();
+        this.player.gold -= price; const added = this.inventory.addItem(Object.assign({}, it)); this.logEvent('info', `Bought ${added.name} for ${price} gold.`); this.showInventoryBadge();
+        // Merchants like good customers
+        this.modifyReputation('merchants', +1, 'Purchase');
+        this.updateUI();
       }));
       body.querySelectorAll('button[data-sell]').forEach(btn=> btn.addEventListener('click', ()=>{
         const id = btn.getAttribute('data-sell'); const price = parseInt(btn.getAttribute('data-price'));
@@ -576,10 +508,10 @@ class Game {
           ${dailyTasks || '<div class="muted">No daily tasks.</div>'}
         </div>`;
 
-      // some sample board quests
+      // some sample board quests (with faction requirements)
       const boardQuests = [
-        {id:'board1',title:'Escort the Merchant',desc:'Escort a merchant through 4 encounters without fleeing. Reward: 200 XP, 150g',type:'escort',target:4,reward:{xp:200,gold:150}},
-        {id:'board2',title:'Deliver Parcel',desc:'Deliver a sealed parcel to Floor 3 (must return to town). Reward: 180 XP, 120g',type:'delivery',target:1,reward:{xp:180,gold:120}},
+        {id:'board1',title:'Escort the Merchant',desc:'Escort a merchant through 4 encounters without fleeing. Reward: 200 XP, 150g',type:'escort',target:4,reward:{xp:200,gold:150}, reqRep:{merchants:1}},
+        {id:'board2',title:'Deliver Parcel',desc:'Deliver a sealed parcel to Floor 3 (must return to town). Reward: 180 XP, 120g',type:'delivery',target:1,reward:{xp:180,gold:120}, reqRep:{faune:2}},
         {id:'board3',title:'Daily Skirmish',desc:'Defeat 3 monsters on your floor. Repeatable daily. Reward: 50 XP, 30g',type:'kill',target:3,reward:{xp:50,gold:30},repeatable:true}
       ];
 
@@ -590,7 +522,19 @@ class Game {
   const acceptedSet = new Set(p.acceptedOriginalQuestIds);
   const finishedSet = new Set(p.finishedOriginalQuestIds);
   const available = boardQuests.filter(q=> !acceptedSet.has(q.id) && !finishedSet.has(q.id));
-  const availHtml = available.map((q,i)=> `<div style="display:flex;justify-content:space-between;align-items:center;padding:6px"><div><strong>${q.title}</strong><div class="muted">${q.desc}</div></div><div><button data-board="${i}">Accept</button></div></div>`).join('') || '<div class="muted">No available quests.</div>';
+  const rep = p.reputation || {faune:0, fae:0, merchants:0};
+  const availHtml = available.map((q,i)=>{
+    // check faction requirements
+    let locked = false; let lockText = '';
+    if(q.reqRep){
+      for(const k of Object.keys(q.reqRep)){
+        const need = q.reqRep[k]; const cur = rep[k]||0;
+        if(cur < need){ locked = true; lockText = `Locked (need ${k[0].toUpperCase()+k.slice(1)} ${need}+)`; break; }
+      }
+    }
+    const right = locked ? `<span class="muted">${lockText}</span>` : `<button data-board="${i}">Accept</button>`;
+    return `<div style="display:flex;justify-content:space-between;align-items:center;padding:6px"><div><strong>${q.title}</strong><div class="muted">${q.desc}</div></div><div>${right}</div></div>`;
+  }).join('') || '<div class="muted">No available quests.</div>';
       const activeHtml = (this.player.quests || []).map((q,idx)=> `<div style="display:flex;justify-content:space-between;align-items:center;padding:6px"><div><strong>${q.title}</strong><div class="muted">${q.desc}</div><div class="muted">Progress: ${q.progress||0}/${q.target}</div></div><div><button data-abandon="${q.id}">Abandon</button></div></div>`).join('') || '<div class="muted">No active quests.</div>';
       const completedHtml = (this.player.completedQuests || []).map((q,idx)=> `<div style="display:flex;justify-content:space-between;align-items:center;padding:6px"><div><strong>${q.title}</strong><div class="muted">Reward: ${q.reward.xp} XP, ${q.reward.gold} gold</div></div><div><button data-collect="${idx}">Collect</button></div></div>`).join('') || '<div class="muted">No completed quests.</div>';
 
@@ -618,6 +562,16 @@ class Game {
       body.querySelectorAll('button[data-board]').forEach(btn=> btn.addEventListener('click', ()=>{
         const idx = parseInt(btn.getAttribute('data-board'));
         const base = available[idx]; if(!base) return; // safety
+        // guard: check reqRep again
+        if(base.reqRep){
+          const rep2 = this.player.reputation || {};
+          for(const k of Object.keys(base.reqRep)){
+            if((rep2[k]||0) < base.reqRep[k]){
+              this.logEvent('info', `You lack the required reputation to accept this quest.`);
+              return;
+            }
+          }
+        }
         // Hard guard: prevent accepting a second instance of the same original quest
         const alreadyActive = (p.quests||[]).some(q=> q.meta && q.meta.original && q.meta.original.id === base.id);
         const alreadyCompleted = (p.completedQuests||[]).some(q=> q.meta && q.meta.original && q.meta.original.id === base.id);
@@ -965,6 +919,364 @@ class Game {
         if(cds.length){ btnSk.textContent = `Use Skill (CD: ${Math.min(...cds)})`; }
         else { btnSk.textContent = 'Use Skill'; }
       }
+      // Update compact HUD (always visible on mobile)
+      this.updateHud();
+      // Update reputation display (in details)
+      const rep = p.reputation || {faune:0, fae:0, merchants:0};
+      const r1 = document.getElementById('rep-faune'); if(r1) r1.textContent = rep.faune;
+      const r2 = document.getElementById('rep-fae'); if(r2) r2.textContent = rep.fae;
+      const r3 = document.getElementById('rep-merchants'); if(r3) r3.textContent = rep.merchants;
+    }
+
+    // Reputation and checks
+    modifyReputation(faction, delta, reason='action'){
+      const key = String(faction||'').toLowerCase();
+      const rep = this.player.reputation || (this.player.reputation = {faune:0, fae:0, merchants:0});
+      if(!(key in rep)) return;
+      rep[key] = Math.max(-5, Math.min(10, (rep[key]||0) + delta));
+      const arrow = delta>=0 ? '↑' : '↓';
+      this.logEvent('info', `Reputation ${arrow} ${key} (${reason}) → ${rep[key]}`);
+      this.updateUI();
+      try{ this.save(); }catch{}
+    }
+    getPriceMultiplier(){
+      const rep = (this.player.reputation && this.player.reputation.merchants) || 0;
+      const mul = 1 - rep * 0.03; // 3% per point
+      return Math.max(0.7, Math.min(1.1, mul));
+    }
+    skillCheck(stat, dc, advantage=0){
+      const d20 = 1 + Math.floor(Math.random()*20);
+      const bonus = (this.player[stat]||0) + (advantage*2);
+      const total = d20 + bonus;
+      const ok = total >= dc;
+      this.logEvent('info', `Skill Check: d20(${d20}) + ${stat.toUpperCase()}(${bonus}) = ${total} ${ok?'✓':'✗'} (DC ${dc})`);
+      return ok;
+    }
+
+    // ========== COMBAT VISUAL SYSTEM ==========
+    
+    // Show combat stage with full visual layout
+    showCombatStage(){
+      // Use new battle screen functions
+      if(typeof window.showBattleScreen === 'function'){
+        window.showBattleScreen();
+      } else {
+        // Fallback to old method
+        const stage = document.getElementById('combat-stage');
+        const advLog = document.getElementById('adventure-log');
+        const cmdPanel = document.getElementById('command-panel');
+        
+        if(stage) stage.style.display = 'flex';
+        if(advLog) advLog.style.display = 'none';
+        if(cmdPanel) cmdPanel.style.display = 'flex';
+      }
+      
+      // Initialize combat visuals
+      this.updateCombatUI();
+      if(typeof window.updateBattleLog === 'function'){
+        window.updateBattleLog('The battle begins!');
+      } else {
+        this.clearCombatLog();
+      }
+    }
+    
+    // Hide combat stage and return to exploration view
+    hideCombatStage(){
+      // Use new battle screen functions
+      if(typeof window.hideBattleScreen === 'function'){
+        window.hideBattleScreen();
+      } else {
+        // Fallback to old method
+        const stage = document.getElementById('combat-stage');
+        const advLog = document.getElementById('adventure-log');
+        
+        if(stage) stage.style.display = 'none';
+        if(advLog) advLog.style.display = 'block';
+      }
+    }
+    
+    // Update all combat UI elements (HP/SP bars, names, status icons)
+    updateCombatUI(){
+      const p = this.player;
+      const enemy = this.currentEnemy;
+      
+      // Player info
+      const pName = document.getElementById('player-combat-name');
+      if(pName) pName.textContent = p.name;
+      
+      // Use helper if available for player HP
+      if(typeof window.updatePlayerHP === 'function'){
+        window.updatePlayerHP(p.hp, p.maxHP);
+      } else {
+        // Fallback
+        const pHpBar = document.getElementById('player-combat-hp-bar');
+        const pHpText = document.getElementById('player-combat-hp-text');
+        if(pHpBar && pHpText){
+          const hpPct = Math.max(0, Math.min(100, (p.hp / p.maxHP) * 100));
+          pHpBar.style.width = hpPct + '%';
+          pHpText.textContent = `${Math.max(0, p.hp)}/${p.maxHP}`;
+
+          // Update player underbar (beneath character art)
+          const pUnderBar = document.getElementById('player-under-hp-bar');
+          const pUnderText = document.getElementById('player-under-hp-text');
+          if(pUnderBar && pUnderText){
+            pUnderBar.style.width = hpPct + '%';
+            pUnderText.textContent = `${Math.max(0, p.hp)}/${p.maxHP}`;
+          }
+        }
+      }
+      
+      const pSpBar = document.getElementById('player-combat-sp-bar');
+      const pSpText = document.getElementById('player-combat-sp-text');
+      if(pSpBar && pSpText){
+        const spPct = Math.max(0, Math.min(100, (p.sp / p.maxSP) * 100));
+        pSpBar.style.width = spPct + '%';
+        pSpText.textContent = `${Math.max(0, p.sp)}/${p.maxSP}`;
+      }
+      
+      // Player status icons
+      this.updateStatusIcons('player', p.statusEffects || []);
+      
+      // Enemy info
+      if(enemy){
+        const eName = document.getElementById('enemy-combat-name');
+        if(eName) eName.textContent = enemy.name + (enemy.isBoss ? ' (Boss)' : '') + ' LVL ' + (enemy.level || this.player.floor);
+        
+        // Use new helper if available
+        if(typeof window.updateEnemyHP === 'function'){
+          window.updateEnemyHP(enemy.hp, enemy.maxHP);
+        } else {
+          // Fallback to old method
+          const eHpBar = document.getElementById('enemy-combat-hp-bar');
+          const eHpText = document.getElementById('enemy-combat-hp-text');
+          if(eHpBar && eHpText){
+            const hpPct = Math.max(0, Math.min(100, (enemy.hp / enemy.maxHP) * 100));
+            eHpBar.style.width = hpPct + '%';
+            eHpText.textContent = `${Math.max(0, enemy.hp)}/${enemy.maxHP}`;
+          }
+          // Update enemy underbar (beneath character art)
+          {
+            const eUnderBar = document.getElementById('enemy-under-hp-bar');
+            const eUnderText = document.getElementById('enemy-under-hp-text');
+            if(eUnderBar && eUnderText){
+              const ePct = Math.max(0, Math.min(100, (enemy.hp / enemy.maxHP) * 100));
+              eUnderBar.style.width = ePct + '%';
+              eUnderText.textContent = Math.round(ePct) + '%';
+            }
+          }
+        }
+        
+        // Enemy status icons
+        this.updateStatusIcons('enemy', enemy.statusEffects || []);
+      }
+    }
+    
+    // Update status effect icons for player or enemy
+    updateStatusIcons(target, effects){
+      const container = document.getElementById(`${target}-status-icons`);
+      if(!container) return;
+      
+      container.innerHTML = '';
+      effects.forEach(eff => {
+        if(!eff || eff.turns <= 0) return;
+        const icon = document.createElement('div');
+        icon.className = 'status-icon';
+        icon.setAttribute('data-turns', eff.turns);
+        icon.setAttribute('title', `${eff.type} (${eff.turns} turns)`);
+        
+        // Icon mapping
+        const iconMap = {
+          poison: '🧪', stun: '⚡', slow: '🐌', regen: '💚',
+          bless_atk: '⚔️', bless_def: '🛡️', lucky: '🍀', weaken: '💔', defend: '🛡️'
+        };
+        icon.textContent = iconMap[eff.type] || '❓';
+        container.appendChild(icon);
+      });
+    }
+    
+    // Show turn indicator (YOUR TURN or ENEMY TURN)
+    showTurnIndicator(isPlayerTurn){
+      // Use new battle screen function if available
+      if(typeof window.showBattleTurnIndicator === 'function'){
+        window.showBattleTurnIndicator(isPlayerTurn);
+        return;
+      }
+      
+      // Fallback to old method
+      const indicator = document.getElementById('turn-indicator');
+      const text = document.querySelector('.turn-text, .turn-text-new');
+      
+      if(!indicator || !text) return;
+      
+      indicator.classList.remove('show', 'enemy-turn');
+      text.textContent = isPlayerTurn ? 'YOUR TURN' : 'ENEMY TURN';
+      
+      if(!isPlayerTurn) indicator.classList.add('enemy-turn');
+      
+      // Trigger animation
+      setTimeout(() => indicator.classList.add('show'), 50);
+      
+      // Auto-hide
+      setTimeout(() => indicator.classList.remove('show'), 1500);
+    }
+    
+    // Show damage number floating up from combatant
+    showDamageNumber(amount, target, isCrit = false, isHeal = false, isDodge = false){
+      // Use new battle screen function if available
+      if(typeof window.showBattleDamage === 'function'){
+        let type = 'damage';
+        if(isDodge) type = 'dodge';
+        else if(isHeal) type = 'heal';
+        else if(isCrit) type = 'critical';
+        
+        window.showBattleDamage(amount, target, type);
+        return;
+      }
+      
+      // Fallback to old method
+      const container = document.getElementById('damage-numbers');
+      if(!container) return;
+      
+      const dmgEl = document.createElement('div');
+      dmgEl.className = 'damage-number';
+      
+      if(isDodge){
+        dmgEl.textContent = 'DODGE!';
+        dmgEl.classList.add('dodge');
+      } else if(isHeal){
+        dmgEl.textContent = '+' + amount;
+        dmgEl.classList.add('heal');
+      } else {
+        dmgEl.textContent = '-' + amount;
+        if(isCrit) dmgEl.classList.add('critical');
+      }
+      
+      // Position based on target
+      const targetEl = document.getElementById(`${target}-combatant`) || document.getElementById(`${target}-display`);
+      if(targetEl){
+        const rect = targetEl.getBoundingClientRect();
+        dmgEl.style.left = (rect.left + rect.width / 2) + 'px';
+        dmgEl.style.top = (rect.top + 40) + 'px';
+      } else {
+        dmgEl.style.left = (target === 'player' ? '25%' : '75%');
+        dmgEl.style.top = '40%';
+      }
+      
+      container.appendChild(dmgEl);
+      
+      // Remove after animation
+      setTimeout(() => {
+        if(dmgEl.parentNode) dmgEl.parentNode.removeChild(dmgEl);
+      }, 1200);
+    }
+    
+    // Trigger attack animation on combatant sprite
+    animateAttack(target){
+      const sprite = document.querySelector(`.${target}-sprite`);
+      if(!sprite) return;
+      
+      sprite.classList.remove('attacking');
+      setTimeout(() => sprite.classList.add('attacking'), 10);
+      setTimeout(() => sprite.classList.remove('attacking'), 500);
+    }
+    
+    // Trigger hit/damage animation on combatant sprite
+    animateHit(target){
+      const sprite = document.querySelector(`.${target}-sprite`);
+      if(!sprite) return;
+      
+      sprite.classList.remove('hit');
+      setTimeout(() => sprite.classList.add('hit'), 10);
+      setTimeout(() => sprite.classList.remove('hit'), 400);
+    }
+    
+    // Trigger defend animation on combatant sprite
+    animateDefend(target){
+      const sprite = document.querySelector(`.${target}-sprite`);
+      if(!sprite) return;
+      
+      sprite.classList.remove('defending');
+      setTimeout(() => sprite.classList.add('defending'), 10);
+      setTimeout(() => sprite.classList.remove('defending'), 600);
+    }
+    
+    // Add message to combat log overlay
+    logCombat(message, type = 'info'){
+      // Use new battle log if available
+      if(typeof window.updateBattleLog === 'function'){
+        window.updateBattleLog(message);
+      } else {
+        // Fallback to old method
+        const container = document.getElementById('combat-log-entries');
+        if(!container) return;
+        
+        const line = document.createElement('div');
+        line.className = `combat-log-line log-${type}`;
+        line.textContent = message;
+        
+        container.appendChild(line);
+        
+        // Auto-scroll to bottom
+        container.scrollTop = container.scrollHeight;
+        
+        // Keep only last 10 messages
+        while(container.children.length > 10){
+          container.removeChild(container.firstChild);
+        }
+      }
+    }
+    
+    // Clear combat log
+    clearCombatLog(){
+      const container = document.getElementById('combat-log-entries');
+      if(container) container.innerHTML = '';
+    }
+    
+    // Show enemy intent (next action preview)
+    showEnemyIntent(action){
+      const intentEl = document.getElementById('enemy-intent');
+      if(!intentEl) return;
+      
+      const iconEl = intentEl.querySelector('.intent-icon');
+      const textEl = intentEl.querySelector('.intent-text');
+      
+      if(iconEl && textEl){
+        const intentMap = {
+          attack: { icon: '⚔️', text: 'Preparing attack' },
+          skill: { icon: '✨', text: 'Charging skill' },
+          heal: { icon: '💚', text: 'Preparing to heal' },
+          defend: { icon: '🛡️', text: 'Raising guard' }
+        };
+        
+        const intent = intentMap[action] || { icon: '❓', text: 'Preparing...' };
+        iconEl.textContent = intent.icon;
+        textEl.textContent = intent.text;
+      }
+    }
+
+    // ========== END COMBAT VISUAL SYSTEM ==========
+
+    // Compact HUD updater
+    updateHud(){
+      const p = this.player || {};
+      const byId = (id)=> document.getElementById(id);
+      const setText = (id, val)=>{ const el = byId(id); if(el) el.textContent = val; };
+      setText('hud-name', p.name || 'Player');
+      setText('hud-level', p.level ?? 1);
+      setText('hud-floor', p.floor ?? 1);
+      setText('hud-gold', p.gold ?? 0);
+      const hpBar = byId('hud-hp-bar');
+      const xpBar = byId('hud-xp-bar');
+      if(hpBar){
+        const max = Math.max(1, p.maxHP || 1);
+        const hp = Math.max(0, Math.min(p.hp || 0, max));
+        hpBar.style.width = Math.min(100, Math.round((hp/max)*100)) + '%';
+      }
+      if(xpBar){
+        const next = (typeof p.nextXp === 'function') ? p.nextXp() : (p.nextXp || 1);
+        const xp = Math.max(0, p.xp || 0);
+        xpBar.style.width = Math.min(100, Math.round((xp/Math.max(1,next))*100)) + '%';
+      }
     }
 
     updateInventoryUI(){
@@ -1246,12 +1558,13 @@ class Game {
     }
 
     eventMerchant(floor){
-      const price = 50 + Math.max(0, floor-1) * 2;
+      const base = 50 + Math.max(0, floor-1) * 2;
+      const price = Math.max(1, Math.floor(base * this.getPriceMultiplier()));
       const html = `
         <div style="display:flex;flex-direction:column;gap:8px">
           <div><strong>Wandering Merchant</strong></div>
           <div class="muted">"A blessing for brave explorers!"</div>
-          <div>Pay ${price}g for a temporary blessing (+1 ATK, +1 DEF for 3 battles)?</div>
+          <div>Rates adjusted by reputation. Pay ${price}g for a temporary blessing (+1 ATK, +1 DEF for 3 battles)?</div>
         </div>`;
       this.showModal('Merchant in the Woods', html, [
         {text:'Buy Blessing', action:()=>{
@@ -1260,6 +1573,7 @@ class Game {
           this.applyStatusToPlayer('bless_atk', 3, 1);
           this.applyStatusToPlayer('bless_def', 3, 1);
           this.logEvent('info','You feel empowered by the blessing (+1 ATK/DEF for 3 battles).');
+          this.modifyReputation('merchants', +1, 'Supported a wandering merchant');
           this.hideModal(); this.busy=false; this.setButtonsDisabled(false); this.updateUI();
         }},
         {text:'Ignore', action:()=>{ this.hideModal(); this.busy=false; this.setButtonsDisabled(false); this.updateUI(); }}
@@ -1276,7 +1590,7 @@ class Game {
         </div>`;
       this.showModal('Hidden Shrine', html, [
         {text:'Pray', action:()=>{
-          const boon = Math.random() < 0.7;
+          const boon = this.skillCheck('luck', 12, 0) || Math.random() < 0.5;
           if(boon){
             this.player.hp = this.player.maxHP;
             this.applyStatusToPlayer('lucky', 3, 1);
@@ -1284,6 +1598,7 @@ class Game {
           } else {
             this.applyStatusToPlayer('weaken', 2, -1);
             this.logEvent('info','A dark chill weakens you (-1 ATK for 2 battles).');
+            this.modifyReputation('faune', -1, 'Desecrated sacred ground');
           }
           this.hideModal(); this.busy=false; this.setButtonsDisabled(false); this.updateUI();
         }},
@@ -1293,7 +1608,37 @@ class Game {
     }
 
     eventAmbush(floor, context){
-      // Start an immediate fight with improved drops
+      // If Fae reputation is decent, attempt to parley
+      if((this.player.reputation?.fae || 0) >= 2){
+        const html = `
+          <div style="display:flex;flex-direction:column;gap:8px">
+            <div><strong>Ambush</strong></div>
+            <div class="muted">Figures emerge from the shadows. They recognize your Fae ties.</div>
+            <div>Try to parley (Luck check) or fight?</div>
+          </div>`;
+        this.showModal('Ambush!', html, [
+          {text:'Parley', action:()=>{
+            const ok = this.skillCheck('luck', 11, 1);
+            if(ok){
+              this.modifyReputation('fae', +1, 'Parleyed with ambushers');
+              this.player.gold += 15; this.logEvent('gold','You trade words, not blows. They tip 15g.');
+              this.hideModal(); this.busy=false; this.setButtonsDisabled(false); this.updateUI();
+            } else {
+              this.modifyReputation('fae', -1, 'Parley failed');
+              const enemy = makeEnemy(floor, context==='dungeon' ? 'dungeon' : 'field');
+              enemy.floor = floor; enemy.rareDropBoost = true;
+              this.hideModal(); this.logEvent('info','Parley fails. They attack!'); this.fight(enemy);
+            }
+          }},
+          {text:'Fight', action:()=>{
+            const enemy = makeEnemy(floor, context==='dungeon' ? 'dungeon' : 'field');
+            enemy.floor = floor; enemy.rareDropBoost = true;
+            this.hideModal(); this.fight(enemy);
+          }}
+        ]);
+        return true;
+      }
+      // Default: immediate fight with improved drops
       const enemy = makeEnemy(floor, context==='dungeon' ? 'dungeon' : 'field');
       enemy.floor = floor; enemy.rareDropBoost = true;
       this.logEvent('info', 'Ambush! Enemies leap from the shadows!', 'Drops boosted');
@@ -1310,8 +1655,11 @@ class Game {
         </div>`;
       this.showModal('Lost Faune', html, [
         {text:'Help', action:()=>{
-          const reward = Math.random() < 0.5 ? 'Raw Crystal' : 'Ingot';
-          const itm = this.inventory.addItem({name:reward,type:'resource'});
+          const ok = this.skillCheck('dex', 12, 0);
+          const reward = ok ? (Math.random() < 0.6 ? 'Raw Crystal' : 'Ingot') : 'Herb';
+          const type = reward==='Herb' ? {type:'consumable',heal:20} : {type:'resource'};
+          const itm = this.inventory.addItem(Object.assign({name:reward}, type));
+          if(ok){ this.modifyReputation('faune', +1, 'Guided a lost faune'); }
           this.logEvent('loot', `The faune thanks you with ${itm.name}.`);
           this.showInventoryBadge();
           this.hideModal(); this.busy=false; this.setButtonsDisabled(false); this.updateUI();
@@ -1330,11 +1678,21 @@ class Game {
       this.currentEnemy.floor = enemy.floor || this.player.floor;
       this.currentEnemy.isBoss = !!enemy.isBoss;
       this.logEvent('info', `Encountered: ${this.currentEnemy.name}`, this.currentEnemy.isBoss ? 'Boss' : 'Enemy');
-        this.busy = true;
-        // Show combat actions
-        this.enterCombat();
-        // Start turn-based combat
-        this.combatTurn();
+      
+      // Log to combat overlay
+      if(this.currentEnemy.isBoss){
+        this.logCombat(`🔥 BOSS BATTLE: ${this.currentEnemy.name}!`, 'boss');
+      } else {
+        this.logCombat(`⚔️ ${this.currentEnemy.name} appears!`, 'combat');
+      }
+      
+      this.busy = true;
+      // Show combat visual stage
+      this.showCombatStage();
+      // Show combat actions
+      this.enterCombat();
+      // Start turn-based combat
+      this.combatTurn();
     }
     
       enterCombat(){
@@ -1347,9 +1705,16 @@ class Game {
         // Start with player turn enabled
         this.setCombatButtonsEnabled(true);
         this.playerTurn = true; // reset turn to player when combat starts
+        
+        // Update combat visual UI
+        this.updateCombatUI();
+        this.showTurnIndicator(true); // Show "YOUR TURN"
       }
     
       exitCombat(){
+        // Hide combat visual stage
+        this.hideCombatStage();
+        
         const mainAct = document.getElementById('main-actions'); if(mainAct) mainAct.style.display = 'flex';
         const combatAct = document.getElementById('combat-actions'); if(combatAct) combatAct.style.display = 'none';
         document.body.classList.remove('in-combat');
@@ -1390,10 +1755,13 @@ class Game {
         }
         this.playerTurn = true; // it's now player's turn
         this.logEvent('info', `Your turn! ${enemy.name} HP: ${enemy.hp}/${enemy.maxHP}`, 'Choose your action');
+      this.showTurnIndicator(true); // Show "YOUR TURN"
+      this.logCombat(`Your turn! ${enemy.name} HP: ${enemy.hp}/${enemy.maxHP}`, 'info');
         // Decrement skill cooldowns
         Object.keys(p.skillCooldowns||{}).forEach(k=>{ if(p.skillCooldowns[k] > 0) p.skillCooldowns[k]--; });
         this.processPlayerStatusEffects();
         this.updateUI();
+      this.updateCombatUI();
         // Enable combat actions for the player
         this.setCombatButtonsEnabled(true);
         // Combat actions are now available via buttons - wait for player input
@@ -1404,77 +1772,92 @@ class Game {
       if(!this.playerTurn) return; // prevent spam clicking
       this.playerTurn = false; // lock out other actions this turn
       
-      // Combo bonus system
-      let comboMultiplier = 1.0;
-      let guaranteedCrit = false;
-      if(p.comboCount >= 10) {
-        comboMultiplier = 1.5; // +50% at 10+ combo
-      } else if(p.comboCount >= 5) {
-        comboMultiplier = 1.25; // +25% at 5+ combo
-        guaranteedCrit = true;
-      } else if(p.comboCount >= 3) {
-        comboMultiplier = 1.1; // +10% at 3+ combo
-      }
+      // Trigger attack animation
+      this.animateAttack('player');
+      this.logCombat(`${p.name} attacks!`, 'action');
       
-  // critical hit calculation (base 5% + Luck scaling + small DEX)
-  const luckBonus = this.getPlayerTempBonus('luck');
-  let critChance = 0.05 + ((p.luck || 0) + luckBonus) * 0.01 + (p.dex || 0) * 0.003;
-  if(p.archetype === 'striker') critChance += (ARCHETYPES.striker.passives.critBonus || 0);
-      if(p.skills && p.skills['battle_focus']) critChance += 0.05; // passive bonus
-      const isCrit = guaranteedCrit || Math.random() < critChance;
-      if(isCrit) p.criticalHits = (p.criticalHits || 0) + 1; // Track crits for achievements
-      
-  const atkBonus = this.getPlayerTempBonus('atk');
-  const playerDamageRaw = (p.atk + atkBonus) + rand(-1,2);
-      let playerDamage = Math.max(1, playerDamageRaw - (enemy.def||0));
-      playerDamage = Math.floor(playerDamage * comboMultiplier); // Apply combo bonus
-      if(isCrit){ playerDamage = playerDamage * 2; }
-      
-      enemy.hp -= playerDamage;
-      
-      // Increment combo on successful hit
-      p.comboCount = (p.comboCount || 0) + 1;
-      if(p.comboCount > (p.maxCombo || 0)) p.maxCombo = p.comboCount;
-      
-      // Display combo counter if >= 3
-      const comboText = p.comboCount >= 3 ? ` ×${p.comboCount} COMBO!` : '';
-      const detail = `Attack: ${playerDamageRaw} - DEF: ${enemy.def||0}${comboMultiplier > 1 ? ` (×${comboMultiplier} combo)` : ''}`;
-      
-      if(isCrit){
-        this.logEvent('attack', `⚔️ CRITICAL HIT! ${this.player.name} struck for ${playerDamage} damage!${comboText}`, detail, 'log-critical');
-        this.vibrate([40,60,40]);
-        this.playSfx('attack');
-        this.shakeScreen(200);
-      } else {
-        this.logEvent('attack', `You hit ${enemy.name} for ${playerDamage} damage${comboText}`, detail);
-        this.playSfx('attack');
-      }
-      
-      // Show combo UI overlay for high combos
-      if(p.comboCount >= 3) {
-        this.showComboOverlay(p.comboCount);
-      }
-      
-      // Combo milestone bonuses
-      if(p.comboCount === 10) {
-        const healAmount = Math.floor(p.maxHP * 0.5);
-        p.hp = Math.min(p.maxHP, p.hp + healAmount);
-        this.logEvent('heal', `💫 MEGA COMBO! Restored ${healAmount} HP!`, null, 'log-critical');
-      }
-      
-      this.flashElement(document.getElementById('player-xp'),'glow-xp',500);
-      this.updateUI();
-      
-      // check death
-      if(enemy.hp <= 0){
-        this.vibrate([30,30,60]);
-        this.shakeScreen(260);
-        this.onEnemyDefeated(enemy);
-        this.exitCombat();
-        return;
-      }
-      // enemy turn
-      setTimeout(()=> this.enemyTurn(), 400 + Math.random()*300);
+      // Small delay for animation
+      setTimeout(() => {
+        // Combo bonus system
+        let comboMultiplier = 1.0;
+        let guaranteedCrit = false;
+        if(p.comboCount >= 10) {
+          comboMultiplier = 1.5; // +50% at 10+ combo
+        } else if(p.comboCount >= 5) {
+          comboMultiplier = 1.25; // +25% at 5+ combo
+          guaranteedCrit = true;
+        } else if(p.comboCount >= 3) {
+          comboMultiplier = 1.1; // +10% at 3+ combo
+        }
+        
+    // critical hit calculation (base 5% + Luck scaling + small DEX)
+    const luckBonus = this.getPlayerTempBonus('luck');
+    let critChance = 0.05 + ((p.luck || 0) + luckBonus) * 0.01 + (p.dex || 0) * 0.003;
+    if(p.archetype === 'striker') critChance += (ARCHETYPES.striker.passives.critBonus || 0);
+        if(p.skills && p.skills['battle_focus']) critChance += 0.05; // passive bonus
+        const isCrit = guaranteedCrit || Math.random() < critChance;
+        if(isCrit) p.criticalHits = (p.criticalHits || 0) + 1; // Track crits for achievements
+        
+    const atkBonus = this.getPlayerTempBonus('atk');
+    const playerDamageRaw = (p.atk + atkBonus) + rand(-1,2);
+        let playerDamage = Math.max(1, playerDamageRaw - (enemy.def||0));
+        playerDamage = Math.floor(playerDamage * comboMultiplier); // Apply combo bonus
+        if(isCrit){ playerDamage = playerDamage * 2; }
+        
+        enemy.hp -= playerDamage;
+        
+        // Trigger hit animation and damage number
+        this.animateHit('enemy');
+        this.showDamageNumber(playerDamage, 'enemy', isCrit, false, false);
+        
+        // Increment combo on successful hit
+        p.comboCount = (p.comboCount || 0) + 1;
+        if(p.comboCount > (p.maxCombo || 0)) p.maxCombo = p.comboCount;
+        
+        // Display combo counter if >= 3
+        const comboText = p.comboCount >= 3 ? ` ×${p.comboCount} COMBO!` : '';
+        const detail = `Attack: ${playerDamageRaw} - DEF: ${enemy.def||0}${comboMultiplier > 1 ? ` (×${comboMultiplier} combo)` : ''}`;
+        
+        if(isCrit){
+          this.logEvent('attack', `⚔️ CRITICAL HIT! ${this.player.name} struck for ${playerDamage} damage!${comboText}`, detail, 'log-critical');
+          this.logCombat(`💥 CRITICAL HIT! ${playerDamage} damage!${comboText}`, 'critical');
+          this.vibrate([40,60,40]);
+          this.playSfx('attack');
+          this.shakeScreen(200);
+        } else {
+          this.logEvent('attack', `You hit ${enemy.name} for ${playerDamage} damage${comboText}`, detail);
+          this.logCombat(`Hit for ${playerDamage} damage${comboText}`, 'combat');
+          this.playSfx('attack');
+        }
+        
+        // Show combo UI overlay for high combos
+        if(p.comboCount >= 3) {
+          this.showComboOverlay(p.comboCount);
+        }
+        
+        // Combo milestone bonuses
+        if(p.comboCount === 10) {
+          const healAmount = Math.floor(p.maxHP * 0.5);
+          p.hp = Math.min(p.maxHP, p.hp + healAmount);
+          this.logEvent('heal', `💫 MEGA COMBO! Restored ${healAmount} HP!`, null, 'log-critical');
+          this.logCombat(`💫 MEGA COMBO! Restored ${healAmount} HP!`, 'heal');
+        }
+        
+        this.flashElement(document.getElementById('player-xp'),'glow-xp',500);
+        this.updateUI();
+        this.updateCombatUI();
+        
+        // check death
+          if(enemy.hp <= 0){
+            this.vibrate([30,30,60]);
+            this.shakeScreen(260);
+            this.onEnemyDefeated(enemy);
+            this.exitCombat();
+            return;
+          }
+          // enemy turn
+          setTimeout(()=> this.enemyTurn(), 400 + Math.random()*300);
+        }, 300); // End of attack animation delay
     }
     
     defendAction(){
@@ -1482,7 +1865,9 @@ class Game {
       if(!this.playerTurn) return; // prevent spam clicking
       this.playerTurn = false; // lock out other actions
       this.player.isDefending = true;
+        this.animateDefend('player');
       this.logEvent('info','You brace for the next attack','Incoming damage reduced');
+        this.logCombat(`${this.player.name} defends!`, 'action');
       setTimeout(()=> this.enemyTurn(), 300 + Math.random()*200);
     }
     
@@ -1493,16 +1878,18 @@ class Game {
       // cannot flee if escorting or from certain enemies
       const escortActive = (p.quests || []).some(q=> q.type === 'escort');
       if(escortActive){ this.logEvent('info','Cannot flee while escorting!'); return; }
-      if(enemy.cannotFlee || enemy.isBoss){ this.logEvent('info','Cannot flee from this enemy!'); setTimeout(()=> this.enemyTurn(), 300); return; }
+      if(enemy.cannotFlee || enemy.isBoss){ this.logEvent('info','Cannot flee from this enemy!'); this.logCombat('You cannot flee from this foe!', 'info'); setTimeout(()=> this.enemyTurn(), 300); return; }
       // Calculate flee chance based on DEX
       const baseChance = enemy.inDungeon ? 0.3 : 0.5;
       const dexBonus = ((p.dex || 1) - (enemy.dex || 1)) * 0.02;
       const fleeChance = Math.max(0.1, Math.min(0.9, baseChance + dexBonus));
       if(Math.random() < fleeChance){
         this.logEvent('info','You escaped safely!','Fled from combat');
+        this.logCombat('🧭 You fled the battle.', 'info');
         this.exitCombat();
       } else {
         this.logEvent('info','Escape failed! Enemy attacks!');
+        this.logCombat('Escape failed! Enemy attacks!', 'enemy');
         setTimeout(()=> this.enemyTurn(), 300);
       }
     }
@@ -1521,13 +1908,21 @@ class Game {
         const it = consumables[idx];
         const res = this.inventory.useItem(it.id, this.player);
         if(res.used){ 
-          if(res.heal) this.logEvent('heal', `Used ${it.name}. Restored ${res.heal||0} HP`); 
-          if(res.cured) this.logEvent('info', `Used ${it.name}. Cured ${res.cured} status effects`);
+          if(res.heal){
+            this.logEvent('heal', `Used ${it.name}. Restored ${res.heal||0} HP`); 
+            this.logCombat(`💚 +${res.heal||0} HP (${it.name})`, 'heal');
+            this.showDamageNumber(res.heal||0, 'player', false, true, false);
+          }
+          if(res.cured){
+            this.logEvent('info', `Used ${it.name}. Cured ${res.cured} status effects`);
+            this.logCombat(`✨ Cured ${res.cured} status`, 'status');
+          }
           this.player.consumablesUsed = (this.player.consumablesUsed || 0) + 1; // Track for achievements
         }
         else { this.logEvent('info', `Could not use ${it.name}`); }
         this.hideModal();
         this.updateUI();
+        this.updateCombatUI();
         setTimeout(()=> this.enemyTurn(), 300 + Math.random()*200);
       }));
     }
@@ -1543,8 +1938,13 @@ class Game {
       const html = activeSkills.map((k,i)=> {
         const sk = SKILLS[k];
         const cd = (p.skillCooldowns && p.skillCooldowns[k]) || 0;
-        const canUse = cd === 0;
-        return `<div style=\"display:flex;justify-content:space-between;align-items:center;padding:6px\"><div><strong>${sk.name}</strong><div class=\"muted\">${sk.desc}</div>${cd > 0 ? `<div class=\"muted\">Cooldown: ${cd} turns</div>` : ''}</div><button data-skill=\"${k}\" ${canUse ? '' : 'disabled'}>Use</button></div>`;
+        const spCost = sk.spCost || 0;
+        const hasSP = (p.sp || 0) >= spCost;
+        const canUse = cd === 0 && hasSP;
+        const spLine = spCost > 0 ? `<div class=\"muted\">SP Cost: ${spCost}</div>` : '';
+        const cdLine = cd > 0 ? `<div class=\"muted\">Cooldown: ${cd} turns</div>` : '';
+        const disableReason = !hasSP && cd===0 ? ' (No SP)' : (cd>0 ? ' (CD)' : '');
+        return `<div style=\"display:flex;justify-content:space-between;align-items:center;padding:6px\"><div><strong>${sk.name}</strong><div class=\"muted\">${sk.desc}</div>${spLine}${cdLine}</div><button data-skill=\"${k}\" ${canUse ? '' : 'disabled'}>Use${disableReason}</button></div>`;
       }).join('');
       this.showModal('Use Skill in Combat', `<div style="display:flex;flex-direction:column;gap:6px">${html}</div>`, [{text:'Cancel', action:()=> this.hideModal()}]);
       const body = document.getElementById('modal-body');
@@ -1566,37 +1966,66 @@ class Game {
         if(!sk){ this.logEvent('info','Skill not found'); return; }
         const cd = (p.skillCooldowns && p.skillCooldowns[skillId]) || 0;
         if(cd > 0){ this.logEvent('info',`${sk.name} is on cooldown for ${cd} more turns`); this.playerTurn = true; return; }
+        // SP cost check
+        const spCost = sk.spCost || 0;
+        if(p.sp < spCost){
+          this.logEvent('info', `Not enough SP for ${sk.name}. (${p.sp}/${spCost})`);
+          this.logCombat(`Not enough SP for ${sk.name}`, 'info');
+          this.playerTurn = true;
+          return;
+        }
+        if(spCost > 0){
+          p.sp = Math.max(0, p.sp - spCost);
+          this.updateCombatUI();
+        }
       
         // Apply skill effect
         if(skillId === 'vertical_arc'){
           const damage = Math.floor(p.atk * 1.5);
           const finalDamage = Math.max(1, damage - (enemy.def||0));
           enemy.hp -= finalDamage;
+          this.animateAttack('player');
+          setTimeout(()=>{
+            this.animateHit('enemy');
+            this.showDamageNumber(finalDamage, 'enemy', false, false, false);
+          }, 200);
           this.logEvent('attack', `${sk.name}! ${finalDamage} damage to ${enemy.name}`, 'Powerful strike!');
+          this.logCombat(`✨ ${sk.name} dealt ${finalDamage}!`, 'critical');
           p.skillCooldowns[skillId] = sk.cooldown || 2;
         } else if(skillId === 'quick_heal'){
           const heal = Math.floor(p.maxHP * 0.3);
           p.hp = Math.min(p.maxHP, p.hp + heal);
           this.logEvent('heal', `${sk.name}! Restored ${heal} HP`, 'Quick recovery');
+          this.logCombat(`💚 ${sk.name} +${heal} HP`, 'heal');
+          this.showDamageNumber(heal, 'player', false, true, false);
           p.skillCooldowns[skillId] = sk.cooldown || 3;
         } else if(skillId === 'stance_change'){
           // add guard status for 2 turns
           p.statusEffects = p.statusEffects || [];
           p.statusEffects.push({type:'guard', turns:2, value:2});
           this.logEvent('info', 'You brace yourself. Incoming damage will be reduced for 2 turns.');
+          this.logCombat('🛡️ Guard up for 2 turns', 'info');
+          this.animateDefend('player');
           p.skillCooldowns[skillId] = sk.cooldown || 4;
         } else if(skillId === 'burst_strike'){
           // big hit, then weakened for 1 turn
           const damage = Math.floor(p.atk * 2.0);
           const finalDamage = Math.max(1, damage - (enemy.def||0));
           enemy.hp -= finalDamage;
+          this.animateAttack('player');
+          setTimeout(()=>{
+            this.animateHit('enemy');
+            this.showDamageNumber(finalDamage, 'enemy', true, false, false);
+          }, 200);
           this.logEvent('attack', `${sk.name}! You dealt ${finalDamage} damage but feel exposed.`, 'Weakened');
+          this.logCombat(`💥 ${sk.name} ${finalDamage}! (Weakened)`, 'critical');
           p.statusEffects = p.statusEffects || [];
           p.statusEffects.push({type:'weakened', turns:1, value:1});
           p.skillCooldowns[skillId] = sk.cooldown || 4;
         }
       
-        this.updateUI();
+  this.updateUI();
+        this.updateCombatUI();
         // Check if enemy died
         if(enemy.hp <= 0){
           this.onEnemyDefeated(enemy);
@@ -1611,8 +2040,17 @@ class Game {
       const p = this.player; const enemy = this.currentEnemy; if(!enemy) return;
       this.playerTurn = false; // ensure player can't act during enemy turn
         this.setCombatButtonsEnabled(false);
+      
+        // Show enemy turn indicator
+        this.showTurnIndicator(false);
+        this.logCombat(`${enemy.name}'s turn...`, 'enemy');
+      
       // process enemy status effects (poison etc.) at start of its action
       this.processEnemyStatusEffects(enemy);
+      
+        // Show enemy intent (prepare to attack)
+        this.showEnemyIntent('attack');
+      
       // dodge/evasion check based on DEX
       const enemyDex = enemy.dex || Math.max(1, Math.floor((enemy.atk||1)*0.5));
       let baseDodge = 0.05 + Math.max(-0.2, Math.min(0.3, ((p.dex||1) - enemyDex) * 0.02));
@@ -1620,6 +2058,9 @@ class Game {
       const dodgeChance = Math.max(0.05, Math.min(0.45, baseDodge));
       if(!freeAttack && Math.random() < dodgeChance){
         this.logEvent('info', `💨 You narrowly evaded ${enemy.name}'s attack!`, null, 'log-dodge');
+          this.animateAttack('enemy');
+          this.showDamageNumber(0, 'player', false, false, true); // Show DODGE
+          this.logCombat(`${p.name} dodged the attack!`, 'dodge');
         // Track dodge stats
         p.dodges = (p.dodges || 0) + 1;
         p.dodgeStreak = (p.dodgeStreak || 0) + 1;
@@ -1628,6 +2069,11 @@ class Game {
       // Reset dodge streak on hit (or miss)
       p.dodgeStreak = 0;
       
+        // Animate enemy attack
+        this.animateAttack('enemy');
+      
+        // Small delay then show damage
+        setTimeout(() => {
   const defBonus = this.getPlayerTempBonus('def');
   const enemyDamageRaw = enemy.atk + rand(-1,2);
       // apply guard/weakened modifiers
@@ -1639,17 +2085,24 @@ class Game {
         if(p.isDefending && !freeAttack){ 
           enemyDamage = Math.ceil(enemyDamage/2); 
           this.logEvent('info','Your defense absorbs some damage!','Reduced by 50%');
+            this.logCombat('Defense absorbed damage!', 'info');
           p.isDefending = false; 
         }
       p.hp -= enemyDamage;
       
+          // Show hit animation and damage number
+          this.animateHit('player');
+          this.showDamageNumber(enemyDamage, 'player', false, false, false);
+        
       // Reset combo on taking damage
       if(p.comboCount > 0) {
         this.logEvent('info', `Combo broken! (Was at ×${p.comboCount})`);
+          this.logCombat(`Combo broken!`, 'info');
         p.comboCount = 0;
       }
       
   this.logEvent('attack', `${enemy.name} hits you for ${enemyDamage} damage`, `Attack: ${enemyDamageRaw} - DEF: ${p.def + defBonus}`);
+    this.logCombat(`${enemy.name} hit for ${enemyDamage} damage`, 'enemy');
   this.playSfx('hit');
   this.vibrate([20]);
       this.flashElement(document.getElementById('player-hp'),'flash-red',700);
@@ -1661,10 +2114,13 @@ class Game {
       if(enemy.statusOnHit && Math.random() < (enemy.statusOnHit.chance || 0)){
         this.applyStatusToPlayer(enemy.statusOnHit.type, enemy.statusOnHit.turns || 2, enemy.statusOnHit.value || 0);
         this.logEvent('info', `${enemy.name} inflicted ${enemy.statusOnHit.type} on you!`);
+          this.logCombat(`${enemy.name} inflicted ${enemy.statusOnHit.type}!`, 'status');
       }
       this.updateUI();
+        this.updateCombatUI();
       if(p.hp <= 0){ 
         this.logEvent('info','You were defeated...','HP and gold reduced'); 
+          this.logCombat('You were defeated...', 'defeat');
         this.vibrate([80,60,80]);
         this.failEscortQuests(); 
         p.hp = Math.max(1, Math.floor(p.maxHP/2)); 
@@ -1675,6 +2131,7 @@ class Game {
       }
       // Next turn
       setTimeout(()=> this.combatTurn(), 300);
+        }, 300); // End of attack animation delay
     }
 
     onEnemyDefeated(enemy){
@@ -2804,6 +3261,19 @@ class Game {
   }
 
   // Start game when DOM ready
-  window.addEventListener('DOMContentLoaded', ()=> window.game = new Game());
+  window.addEventListener('DOMContentLoaded', ()=> {
+    // Show loading screen during initialization
+    const loadingScreen = document.getElementById('loading-screen');
+    
+    // Initialize game
+    window.game = new Game();
+    
+    // Hide loading screen after brief delay (allow game to render initial state)
+    setTimeout(() => {
+      if(loadingScreen) {
+        loadingScreen.classList.add('hidden');
+      }
+    }, 800);
+  });
 })();
 

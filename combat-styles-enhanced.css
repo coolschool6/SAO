@@ -1,0 +1,1476 @@
+/* ========================================
+   PROFESSIONAL RPG BATTLE UI - ENHANCED
+   Complete visual overhaul for SAO combat system
+   ======================================== */
+
+/* ==========================================
+   STEP 1: ATMOSPHERIC BATTLE BACKGROUND
+   ========================================== */
+
+.combat-stage {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  animation: combatFadeIn 1s ease-out;
+  
+  /* Multi-layered atmospheric background */
+  background: 
+    /* Moonlight glow effect */
+    radial-gradient(ellipse 800px 400px at 50% 20%, rgba(150,180,220,0.15), transparent 60%),
+    /* Ground fog/mist */
+    radial-gradient(ellipse at 50% 100%, rgba(20,60,40,0.5), transparent 65%),
+    /* Ambient light pools */
+    radial-gradient(circle 300px at 20% 40%, rgba(79,195,247,0.08), transparent),
+    radial-gradient(circle 250px at 80% 60%, rgba(100,200,100,0.08), transparent),
+    /* Forest depth gradient */
+    linear-gradient(180deg, 
+      rgba(15,25,35,0.95) 0%, 
+      rgba(10,20,30,0.97) 40%, 
+      rgba(5,15,25,0.98) 100%
+    ),
+    /* Starry night sky pattern */
+    url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="100%" height="100%" viewBox="0 0 1200 800"><defs><radialGradient id="star1"><stop offset="0%" stop-color="white" stop-opacity="0.9"/><stop offset="100%" stop-color="white" stop-opacity="0"/></radialGradient></defs><circle cx="100" cy="80" r="1.5" fill="url(%23star1)"/><circle cx="250" cy="120" r="1" fill="white" opacity="0.6"/><circle cx="400" cy="60" r="1.2" fill="white" opacity="0.7"/><circle cx="600" cy="140" r="0.8" fill="white" opacity="0.5"/><circle cx="750" cy="90" r="1.3" fill="white" opacity="0.8"/><circle cx="900" cy="110" r="1" fill="white" opacity="0.6"/><circle cx="1050" cy="70" r="1.5" fill="url(%23star1)"/><circle cx="150" cy="200" r="0.9" fill="white" opacity="0.5"/><circle cx="350" cy="180" r="1.1" fill="white" opacity="0.7"/><circle cx="550" cy="220" r="0.7" fill="white" opacity="0.4"/><circle cx="800" cy="190" r="1.2" fill="white" opacity="0.6"/><circle cx="1000" cy="210" r="0.8" fill="white" opacity="0.5"/></svg>'),
+    /* Deep night base color */
+    #0a1420;
+  background-size: 
+    100% 100%,
+    100% 100%,
+    100% 100%,
+    100% 100%,
+    100% 100%,
+    cover;
+  background-position: center;
+  background-attachment: fixed;
+}
+
+/* Forest silhouette overlay - creates depth */
+.combat-stage::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: 
+    /* Distant tree silhouettes */
+    radial-gradient(ellipse 200px 400px at 15% 70%, rgba(10,25,15,0.9), transparent 70%),
+    radial-gradient(ellipse 250px 500px at 85% 65%, rgba(10,25,15,0.85), transparent 70%),
+    radial-gradient(ellipse 180px 350px at 30% 75%, rgba(10,25,15,0.8), transparent 70%),
+    radial-gradient(ellipse 220px 450px at 70% 70%, rgba(10,25,15,0.8), transparent 70%),
+    /* Ground to sky gradient */
+    linear-gradient(to bottom, 
+      transparent 50%, 
+      rgba(15,30,20,0.6) 75%,
+      rgba(20,40,25,0.8) 100%
+    );
+  pointer-events: none;
+  z-index: 1;
+  animation: forestBreeze 20s ease-in-out infinite;
+}
+
+@keyframes forestBreeze {
+  0%, 100% { opacity: 0.9; }
+  50% { opacity: 0.95; }
+}
+
+/* Moonlit ground effect with grass detail */
+.combat-stage::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 45%;
+  background: 
+    /* Grass texture simulation */
+    linear-gradient(to right, 
+      transparent 0px, rgba(30,60,35,0.3) 1px, transparent 2px
+    ) repeat-x,
+    /* Ground shadow and lighting */
+    radial-gradient(ellipse 80% 100% at 50% 100%, rgba(25,50,30,0.95), transparent 85%),
+    linear-gradient(to top, 
+      rgba(20,45,25,0.95) 0%, 
+      rgba(15,35,20,0.7) 30%,
+      transparent 100%
+    );
+  background-size: 4px 100%, 100% 100%, 100% 100%;
+  border-top: 3px solid rgba(50,100,60,0.4);
+  box-shadow: 
+    0 -30px 80px rgba(0,0,0,0.8) inset,
+    0 2px 20px rgba(50,150,70,0.2);
+  pointer-events: none;
+  z-index: 2;
+}
+
+/* Ambient particles/fireflies */
+@keyframes floatParticle {
+  0% { 
+    transform: translate(0, 0) scale(1);
+    opacity: 0;
+  }
+  10% { opacity: 0.8; }
+  90% { opacity: 0.8; }
+  100% { 
+    transform: translate(var(--tx), var(--ty)) scale(0.5);
+    opacity: 0;
+  }
+}
+
+@keyframes combatFadeIn {
+  from { 
+    opacity: 0;
+    transform: scale(1.05);
+    filter: blur(10px);
+  }
+  to { 
+    opacity: 1;
+    transform: scale(1);
+    filter: blur(0);
+  }
+}
+
+/* ==========================================
+   STEP 5: ADVENTURE LOG / INFO BANNER
+   ========================================== */
+
+.combat-log-overlay {
+  position: absolute;
+  top: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(750px, 92%);
+  max-height: 160px;
+  
+  /* Premium glass morphism design */
+  background: 
+    linear-gradient(135deg, 
+      rgba(20,35,55,0.95) 0%, 
+      rgba(15,28,45,0.92) 100%
+    ),
+    radial-gradient(circle at top left, rgba(79,195,247,0.18), transparent 65%),
+    radial-gradient(circle at bottom right, rgba(100,200,150,0.12), transparent 65%);
+  
+  backdrop-filter: blur(16px) saturate(180%) brightness(110%);
+  -webkit-backdrop-filter: blur(16px) saturate(180%) brightness(110%);
+  
+  padding: 20px 28px;
+  overflow: hidden;
+  z-index: 105;
+  
+  border-radius: 16px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+  position: relative;
+  
+  box-shadow: 
+    0 12px 40px rgba(0,0,0,0.8),
+    0 0 30px rgba(79,195,247,0.25),
+    inset 0 1px 0 rgba(255,255,255,0.15),
+    inset 0 -1px 0 rgba(0,0,0,0.3);
+  
+  animation: bannerSlideIn 0.8s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/* Glowing border effect */
+.combat-log-overlay::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 16px;
+  padding: 2px;
+  background: linear-gradient(135deg, 
+    rgba(79,195,247,0.6) 0%, 
+    rgba(100,200,150,0.4) 50%,
+    rgba(79,195,247,0.6) 100%
+  );
+  -webkit-mask: 
+    linear-gradient(#fff 0 0) content-box, 
+    linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events: none;
+  animation: borderPulse 3s ease-in-out infinite;
+}
+
+@keyframes borderPulse {
+  0%, 100% { opacity: 0.6; }
+  50% { opacity: 1; }
+}
+
+/* Corner decorative elements - sci-fi style */
+.combat-log-overlay::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: 
+    /* Top left corner */
+    linear-gradient(135deg, rgba(79,195,247,0.4) 0%, transparent 15%),
+    /* Top right corner */
+    linear-gradient(225deg, rgba(100,200,150,0.3) 0%, transparent 15%),
+    /* Bottom left corner */
+    linear-gradient(45deg, rgba(79,195,247,0.3) 0%, transparent 15%),
+    /* Bottom right corner */
+    linear-gradient(315deg, rgba(100,200,150,0.4) 0%, transparent 15%);
+  background-size: 80px 80px;
+  background-position: 
+    top left, 
+    top right, 
+    bottom left, 
+    bottom right;
+  background-repeat: no-repeat;
+  pointer-events: none;
+  border-radius: 16px;
+}
+
+@keyframes bannerSlideIn {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(-40px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+}
+
+/* Log entries styling */
+.combat-log-entries {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  height: 100%;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(79,195,247,0.5) rgba(255,255,255,0.05);
+  padding-right: 10px;
+}
+
+.combat-log-entries::-webkit-scrollbar {
+  width: 6px;
+}
+
+.combat-log-entries::-webkit-scrollbar-track {
+  background: rgba(0,0,0,0.3);
+  border-radius: 3px;
+}
+
+.combat-log-entries::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, rgba(79,195,247,0.6), rgba(79,195,247,0.4));
+  border-radius: 3px;
+  border: 1px solid rgba(79,195,247,0.3);
+}
+
+.combat-log-entries::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(180deg, rgba(79,195,247,0.8), rgba(79,195,247,0.6));
+}
+
+.combat-log-line {
+  font-size: 15px;
+  line-height: 1.6;
+  color: #e8f0f8;
+  text-shadow: 
+    0 1px 3px rgba(0,0,0,0.8),
+    0 0 10px rgba(79,195,247,0.3);
+  padding: 8px 14px;
+  border-radius: 8px;
+  background: rgba(255,255,255,0.05);
+  border-left: 4px solid rgba(79,195,247,0.5);
+  backdrop-filter: blur(5px);
+  position: relative;
+  animation: logLineAppear 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+  transition: all 0.3s ease;
+}
+
+.combat-log-line:hover {
+  background: rgba(255,255,255,0.08);
+  transform: translateX(4px);
+}
+
+@keyframes logLineAppear {
+  from {
+    opacity: 0;
+    transform: translateX(-20px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0) scale(1);
+  }
+}
+
+/* Message type styling */
+.combat-log-line.log-attack { 
+  border-left-color: #ff5577;
+  background: linear-gradient(90deg, rgba(255,85,119,0.1), transparent 60%);
+}
+
+.combat-log-line.log-critical { 
+  border-left-color: #ffd700;
+  background: linear-gradient(90deg, rgba(255,215,0,0.15), transparent 60%);
+  color: #ffe97f;
+  font-weight: 700;
+  text-shadow: 
+    0 0 10px rgba(255,215,0,0.8),
+    0 1px 3px rgba(0,0,0,0.8);
+  animation: logLineAppear 0.4s cubic-bezier(0.34, 1.56, 0.64, 1), criticalPulse 1.5s ease-in-out infinite;
+}
+
+@keyframes criticalPulse {
+  0%, 100% { box-shadow: 0 0 10px rgba(255,215,0,0.3); }
+  50% { box-shadow: 0 0 20px rgba(255,215,0,0.6); }
+}
+
+.combat-log-line.log-heal { 
+  border-left-color: #66bb6a;
+  background: linear-gradient(90deg, rgba(102,187,106,0.12), transparent 60%);
+  color: #a8f0ac;
+}
+
+.combat-log-line.log-enemy { 
+  border-left-color: #e53935;
+  background: linear-gradient(90deg, rgba(229,57,53,0.1), transparent 60%);
+}
+
+.combat-log-line.log-info { 
+  border-left-color: #4fc3f7;
+  background: linear-gradient(90deg, rgba(79,195,247,0.08), transparent 60%);
+}
+
+.combat-log-line.log-status {
+  border-left-color: #ab47bc;
+  background: linear-gradient(90deg, rgba(171,71,188,0.1), transparent 60%);
+  color: #e1bee7;
+}
+
+/* ==========================================
+   STEP 2: CHARACTER POSITIONING & SPRITES
+   ========================================== */
+
+.combatant {
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  z-index: 102;
+  filter: drop-shadow(0 10px 30px rgba(0,0,0,0.8));
+}
+
+/* Player positioning (left side) */
+.player-side {
+  left: clamp(60px, 12%, 150px);
+  bottom: clamp(80px, 18%, 140px);
+  animation: combatantSlideIn 0.8s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/* Enemy positioning (right side) */
+.enemy-side {
+  right: clamp(60px, 12%, 150px);
+  bottom: clamp(80px, 18%, 140px);
+  animation: combatantSlideIn 0.8s cubic-bezier(0.34, 1.56, 0.64, 1) 0.2s backwards;
+}
+
+@keyframes combatantSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(80px) scale(0.8);
+    filter: blur(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    filter: blur(0);
+  }
+}
+
+/* Character sprite styling */
+.combatant-sprite {
+  width: 140px;
+  height: 140px;
+  font-size: 100px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(255,255,255,0.1), transparent 70%);
+  position: relative;
+  transition: all 0.3s ease;
+  filter: drop-shadow(0 0 30px rgba(79,195,247,0.4));
+}
+
+/* Player sprite - hero styling */
+.player-sprite {
+  background: 
+    radial-gradient(circle at 30% 30%, rgba(79,195,247,0.25), transparent 60%),
+    radial-gradient(circle, rgba(100,200,255,0.15), transparent 70%);
+  animation: playerIdle 3.5s ease-in-out infinite;
+  border: 3px solid rgba(79,195,247,0.4);
+  box-shadow: 
+    0 0 40px rgba(79,195,247,0.6),
+    0 0 80px rgba(79,195,247,0.3),
+    inset 0 0 30px rgba(79,195,247,0.2);
+}
+
+.player-sprite::before {
+  content: '';
+  position: absolute;
+  inset: -5px;
+  border-radius: 50%;
+  background: conic-gradient(from 0deg, 
+    transparent 0deg, 
+    rgba(79,195,247,0.3) 60deg,
+    transparent 120deg,
+    rgba(79,195,247,0.3) 240deg,
+    transparent 300deg
+  );
+  animation: heroAura 4s linear infinite;
+  z-index: -1;
+}
+
+@keyframes heroAura {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+@keyframes playerIdle {
+  0%, 100% { 
+    transform: translateY(0) scale(1);
+  }
+  50% { 
+    transform: translateY(-8px) scale(1.02);
+  }
+}
+
+/* Enemy sprite - menacing styling */
+.enemy-sprite {
+  background: 
+    radial-gradient(circle at 70% 30%, rgba(229,57,53,0.3), transparent 60%),
+    radial-gradient(circle, rgba(255,100,100,0.15), transparent 70%);
+  animation: enemyIdle 2.8s ease-in-out infinite;
+  border: 3px solid rgba(229,57,53,0.5);
+  box-shadow: 
+    0 0 40px rgba(229,57,53,0.7),
+    0 0 80px rgba(229,57,53,0.4),
+    inset 0 0 30px rgba(229,57,53,0.2);
+}
+
+.enemy-sprite::before {
+  content: '';
+  position: absolute;
+  inset: -5px;
+  border-radius: 50%;
+  background: 
+    radial-gradient(circle at 50% 50%, transparent 40%, rgba(229,57,53,0.4) 70%, transparent 100%);
+  animation: enemyPulse 2s ease-in-out infinite;
+  z-index: -1;
+}
+
+@keyframes enemyPulse {
+  0%, 100% { 
+    transform: scale(1);
+    opacity: 0.6;
+  }
+  50% { 
+    transform: scale(1.1);
+    opacity: 1;
+  }
+}
+
+@keyframes enemyIdle {
+  0%, 100% { 
+    transform: translateY(0) scale(1) rotate(-2deg);
+  }
+  50% { 
+    transform: translateY(-6px) scale(1.02) rotate(2deg);
+  }
+}
+
+/* ==========================================
+   STEP 3 & 4: ENHANCED HP/SP STAT BARS
+   ========================================== */
+
+.combatant-info {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  min-width: 240px;
+  background: 
+    linear-gradient(135deg, rgba(20,30,45,0.95), rgba(15,25,40,0.92)),
+    radial-gradient(circle at top, rgba(79,195,247,0.15), transparent 70%);
+  backdrop-filter: blur(12px) saturate(150%);
+  padding: 14px 18px;
+  border-radius: 12px;
+  border: 2px solid rgba(79,195,247,0.4);
+  box-shadow: 
+    0 8px 32px rgba(0,0,0,0.8),
+    0 0 20px rgba(79,195,247,0.2),
+    inset 0 1px 0 rgba(255,255,255,0.1);
+  position: relative;
+}
+
+/* Frame corner accents */
+.combatant-info::before {
+  content: '';
+  position: absolute;
+  inset: 4px;
+  border: 1px solid rgba(79,195,247,0.2);
+  border-radius: 10px;
+  pointer-events: none;
+}
+
+/* Combatant name display */
+.combatant-name {
+  font-size: 18px;
+  font-weight: 700;
+  color: #e8f4f8;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  text-shadow: 
+    0 2px 4px rgba(0,0,0,0.8),
+    0 0 15px rgba(79,195,247,0.5);
+  margin-bottom: 4px;
+  white-space: nowrap;
+}
+
+/* Stat bar row container */
+.stat-bar-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+}
+
+.stat-bar-label {
+  font-size: 13px;
+  font-weight: 700;
+  color: #b0c4de;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  min-width: 30px;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.8);
+}
+
+/* Stat bar container with frame */
+.stat-bar {
+  flex: 1;
+  height: 26px;
+  background: 
+    linear-gradient(180deg, rgba(0,0,0,0.6), rgba(0,0,0,0.8)),
+    rgba(10,15,25,0.9);
+  border-radius: 13px;
+  border: 2px solid rgba(79,195,247,0.3);
+  box-shadow: 
+    inset 0 2px 8px rgba(0,0,0,0.8),
+    0 2px 4px rgba(0,0,0,0.5);
+  position: relative;
+  overflow: hidden;
+}
+
+/* Inner glow effect */
+.stat-bar::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 40%;
+  background: linear-gradient(180deg, rgba(255,255,255,0.1), transparent);
+  border-radius: 13px 13px 0 0;
+  pointer-events: none;
+}
+
+/* HP bar specific styling */
+.hp-bar {
+  border-color: rgba(255,100,100,0.4);
+}
+
+.hp-bar .stat-bar-fill {
+  background: 
+    linear-gradient(90deg, 
+      rgba(255,100,100,0.3) 0%, 
+      rgba(255,50,50,0.2) 100%
+    ),
+    linear-gradient(180deg, 
+      #ff6b6b 0%,
+      #ff4757 50%,
+      #ee2f3d 100%
+    );
+  box-shadow: 
+    0 0 15px rgba(255,70,70,0.6),
+    inset 0 1px 0 rgba(255,255,255,0.3);
+}
+
+/* Enemy HP bar - red theme */
+.enemy-hp .stat-bar-fill {
+  background: 
+    linear-gradient(90deg, 
+      rgba(229,57,53,0.3) 0%, 
+      rgba(229,57,53,0.2) 100%
+    ),
+    linear-gradient(180deg, 
+      #e74c3c 0%,
+      #c0392b 50%,
+      #a93226 100%
+    );
+  box-shadow: 
+    0 0 15px rgba(229,57,53,0.6),
+    inset 0 1px 0 rgba(255,255,255,0.2);
+}
+
+/* SP bar specific styling - cyan/blue theme */
+.sp-bar {
+  border-color: rgba(79,195,247,0.4);
+}
+
+.sp-bar .stat-bar-fill {
+  background: 
+    linear-gradient(90deg, 
+      rgba(79,195,247,0.3) 0%, 
+      rgba(79,195,247,0.2) 100%
+    ),
+    linear-gradient(180deg, 
+      #4fc3f7 0%,
+      #29b6f6 50%,
+      #039be5 100%
+    );
+  box-shadow: 
+    0 0 15px rgba(79,195,247,0.6),
+    inset 0 1px 0 rgba(255,255,255,0.3);
+}
+
+/* Bar fill animation */
+.stat-bar-fill {
+  height: 100%;
+  width: 100%;
+  border-radius: 11px;
+  transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  overflow: hidden;
+}
+
+/* Animated shimmer effect on bars */
+.stat-bar-fill::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, 
+    transparent, 
+    rgba(255,255,255,0.3), 
+    transparent
+  );
+  animation: shimmer 3s infinite;
+}
+
+@keyframes shimmer {
+  to { left: 100%; }
+}
+
+/* Stat bar text overlay */
+.stat-bar-text {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 13px;
+  font-weight: 700;
+  color: #ffffff;
+  text-shadow: 
+    0 1px 3px rgba(0,0,0,0.9),
+    0 0 10px rgba(0,0,0,0.8);
+  letter-spacing: 0.5px;
+  white-space: nowrap;
+  z-index: 1;
+  pointer-events: none;
+}
+
+/* ==========================================
+   STATUS EFFECTS & ENEMY INTENT
+   ========================================== */
+
+.status-icons {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  justify-content: center;
+  margin-top: 6px;
+  min-height: 32px;
+}
+
+.status-icon {
+  width: 34px;
+  height: 34px;
+  border-radius: 8px;
+  background: 
+    linear-gradient(135deg, rgba(40,50,70,0.95), rgba(30,40,60,0.9)),
+    radial-gradient(circle at top left, rgba(79,195,247,0.2), transparent 70%);
+  border: 2px solid rgba(79,195,247,0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  position: relative;
+  box-shadow: 
+    0 4px 12px rgba(0,0,0,0.6),
+    inset 0 1px 0 rgba(255,255,255,0.1);
+  animation: statusIconPop 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+  transition: transform 0.2s ease;
+}
+
+.status-icon:hover {
+  transform: scale(1.1);
+}
+
+@keyframes statusIconPop {
+  from {
+    opacity: 0;
+    transform: scale(0.5) rotate(-180deg);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) rotate(0deg);
+  }
+}
+
+/* Turn counter badge */
+.status-icon::after {
+  content: attr(data-turns);
+  position: absolute;
+  bottom: -6px;
+  right: -6px;
+  width: 18px;
+  height: 18px;
+  background: 
+    linear-gradient(135deg, #4fc3f7, #039be5);
+  border-radius: 50%;
+  border: 2px solid rgba(15,25,40,0.95);
+  font-size: 10px;
+  font-weight: 700;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.8);
+}
+
+/* Enemy intent indicator */
+.enemy-intent {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  background: 
+    linear-gradient(135deg, rgba(229,57,53,0.25), rgba(229,57,53,0.15)),
+    rgba(40,20,20,0.8);
+  border-radius: 8px;
+  border: 2px solid rgba(229,57,53,0.5);
+  box-shadow: 
+    0 0 20px rgba(229,57,53,0.4),
+    inset 0 1px 0 rgba(255,255,255,0.1);
+  margin-top: 6px;
+  animation: intentPulse 2s ease-in-out infinite;
+}
+
+@keyframes intentPulse {
+  0%, 100% { 
+    box-shadow: 
+      0 0 20px rgba(229,57,53,0.4),
+      inset 0 1px 0 rgba(255,255,255,0.1);
+  }
+  50% { 
+    box-shadow: 
+      0 0 30px rgba(229,57,53,0.7),
+      inset 0 1px 0 rgba(255,255,255,0.2);
+  }
+}
+
+.intent-icon {
+  font-size: 20px;
+  filter: drop-shadow(0 0 8px rgba(255,100,100,0.6));
+}
+
+.intent-text {
+  font-size: 13px;
+  font-weight: 600;
+  color: #ffcccb;
+  text-shadow: 0 1px 3px rgba(0,0,0,0.8);
+}
+
+/* ==========================================
+   STEP 7: "YOUR TURN" INDICATOR
+   ========================================== */
+
+.turn-indicator {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 106;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.3s ease;
+}
+
+.turn-indicator.show {
+  opacity: 1;
+  animation: turnIndicatorShow 2s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes turnIndicatorShow {
+  0% {
+    transform: translate(-50%, -50%) scale(0.5) rotate(-10deg);
+    opacity: 0;
+  }
+  15% {
+    transform: translate(-50%, -50%) scale(1.2) rotate(5deg);
+    opacity: 1;
+  }
+  25% {
+    transform: translate(-50%, -50%) scale(0.95) rotate(-2deg);
+  }
+  35% {
+    transform: translate(-50%, -50%) scale(1.05) rotate(1deg);
+  }
+  50% {
+    transform: translate(-50%, -50%) scale(1) rotate(0deg);
+    opacity: 1;
+  }
+  90% {
+    opacity: 1;
+  }
+  100% {
+    transform: translate(-50%, -50%) scale(0.8);
+    opacity: 0;
+  }
+}
+
+.turn-text {
+  font-size: 72px;
+  font-weight: 900;
+  letter-spacing: 6px;
+  text-transform: uppercase;
+  color: #fff;
+  
+  /* Multi-layer text styling */
+  text-shadow: 
+    /* Outer glow */
+    0 0 40px rgba(79,195,247,1),
+    0 0 80px rgba(79,195,247,0.8),
+    0 0 120px rgba(79,195,247,0.6),
+    /* Inner shadow */
+    0 4px 8px rgba(0,0,0,0.9),
+    /* Edge definition */
+    -2px -2px 0 rgba(79,195,247,0.8),
+    2px -2px 0 rgba(79,195,247,0.8),
+    -2px 2px 0 rgba(79,195,247,0.8),
+    2px 2px 0 rgba(79,195,247,0.8);
+  
+  /* Gradient text fill */
+  background: linear-gradient(180deg, 
+    #ffffff 0%,
+    #e0f7ff 30%,
+    #4fc3f7 70%,
+    #039be5 100%
+  );
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  
+  padding: 20px 40px;
+  border-radius: 16px;
+  
+  /* Glass panel behind text */
+  position: relative;
+}
+
+.turn-text::before {
+  content: '';
+  position: absolute;
+  inset: -10px;
+  background: 
+    linear-gradient(135deg, rgba(20,30,45,0.95), rgba(15,25,40,0.9)),
+    radial-gradient(circle, rgba(79,195,247,0.3), transparent 70%);
+  backdrop-filter: blur(20px);
+  border-radius: 20px;
+  border: 3px solid rgba(79,195,247,0.6);
+  box-shadow: 
+    0 0 60px rgba(79,195,247,0.8),
+    inset 0 0 30px rgba(79,195,247,0.2);
+  z-index: -1;
+  animation: turnGlow 1s ease-in-out infinite alternate;
+}
+
+@keyframes turnGlow {
+  from {
+    box-shadow: 
+      0 0 60px rgba(79,195,247,0.8),
+      inset 0 0 30px rgba(79,195,247,0.2);
+  }
+  to {
+    box-shadow: 
+      0 0 90px rgba(79,195,247,1),
+      inset 0 0 50px rgba(79,195,247,0.4);
+  }
+}
+
+/* Enemy turn variant - red theme */
+.turn-indicator.enemy-turn .turn-text {
+  text-shadow: 
+    0 0 40px rgba(229,57,53,1),
+    0 0 80px rgba(229,57,53,0.8),
+    0 0 120px rgba(229,57,53,0.6),
+    0 4px 8px rgba(0,0,0,0.9),
+    -2px -2px 0 rgba(229,57,53,0.8),
+    2px -2px 0 rgba(229,57,53,0.8),
+    -2px 2px 0 rgba(229,57,53,0.8),
+    2px 2px 0 rgba(229,57,53,0.8);
+  
+  background: linear-gradient(180deg, 
+    #ffffff 0%,
+    #ffe0e0 30%,
+    #e53935 70%,
+    #c62828 100%
+  );
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.turn-indicator.enemy-turn .turn-text::before {
+  background: 
+    linear-gradient(135deg, rgba(45,20,20,0.95), rgba(40,15,15,0.9)),
+    radial-gradient(circle, rgba(229,57,53,0.3), transparent 70%);
+  border-color: rgba(229,57,53,0.6);
+  box-shadow: 
+    0 0 60px rgba(229,57,53,0.8),
+    inset 0 0 30px rgba(229,57,53,0.2);
+}
+
+/* ==========================================
+   DAMAGE NUMBERS SYSTEM
+   ========================================== */
+
+.damage-numbers {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 104;
+  overflow: hidden;
+}
+
+.damage-number {
+  position: absolute;
+  font-size: 42px;
+  font-weight: 900;
+  color: #ffffff;
+  text-shadow: 
+    0 0 20px currentColor,
+    0 2px 8px rgba(0,0,0,0.9),
+    -2px -2px 0 rgba(0,0,0,0.8),
+    2px -2px 0 rgba(0,0,0,0.8),
+    -2px 2px 0 rgba(0,0,0,0.8),
+    2px 2px 0 rgba(0,0,0,0.8);
+  pointer-events: none;
+  animation: damageFloat 1.4s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
+  transform-origin: center;
+  letter-spacing: 2px;
+}
+
+@keyframes damageFloat {
+  0% {
+    opacity: 0;
+    transform: translateY(0) scale(0.5) rotate(-10deg);
+  }
+  15% {
+    opacity: 1;
+    transform: translateY(-20px) scale(1.2) rotate(5deg);
+  }
+  25% {
+    transform: translateY(-40px) scale(1.1) rotate(-2deg);
+  }
+  50% {
+    transform: translateY(-80px) scale(1) rotate(0deg);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-150px) scale(0.8) rotate(5deg);
+  }
+}
+
+/* Critical damage - golden with extra effects */
+.damage-number.critical {
+  font-size: 56px;
+  color: #ffd700;
+  text-shadow: 
+    0 0 30px #ffd700,
+    0 0 60px #ffa500,
+    0 4px 12px rgba(0,0,0,0.9),
+    -3px -3px 0 rgba(0,0,0,0.9),
+    3px -3px 0 rgba(0,0,0,0.9),
+    -3px 3px 0 rgba(0,0,0,0.9),
+    3px 3px 0 rgba(0,0,0,0.9);
+  animation: damageCritFloat 1.6s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
+  filter: drop-shadow(0 0 20px #ffd700);
+}
+
+@keyframes damageCritFloat {
+  0% {
+    opacity: 0;
+    transform: translateY(0) scale(0.3) rotate(-15deg);
+  }
+  10% {
+    opacity: 1;
+    transform: translateY(-10px) scale(1.5) rotate(10deg);
+  }
+  20% {
+    transform: translateY(-30px) scale(1.3) rotate(-5deg);
+  }
+  30% {
+    transform: translateY(-50px) scale(1.4) rotate(3deg);
+  }
+  60% {
+    transform: translateY(-100px) scale(1.2) rotate(0deg);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-180px) scale(0.9) rotate(8deg);
+  }
+}
+
+/* Healing numbers - green theme */
+.damage-number.heal {
+  color: #66bb6a;
+  font-size: 38px;
+  text-shadow: 
+    0 0 25px #66bb6a,
+    0 0 50px #4caf50,
+    0 2px 8px rgba(0,0,0,0.9);
+  animation: healFloat 1.3s ease-out forwards;
+}
+
+@keyframes healFloat {
+  0% {
+    opacity: 0;
+    transform: translateY(20px) scale(0.5);
+  }
+  20% {
+    opacity: 1;
+    transform: translateY(0) scale(1.2);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-120px) scale(0.9);
+  }
+}
+
+/* Dodge indicator - cyan theme */
+.damage-number.dodge {
+  font-size: 48px;
+  color: #4fc3f7;
+  text-shadow: 
+    0 0 30px #4fc3f7,
+    0 0 60px #00bcd4,
+    0 3px 10px rgba(0,0,0,0.9);
+  animation: dodgeFloat 1.2s cubic-bezier(0.68, -0.55, 0.27, 1.55) forwards;
+}
+
+@keyframes dodgeFloat {
+  0% {
+    opacity: 0;
+    transform: translateX(-30px) translateY(0) scale(0.5) rotate(-20deg);
+  }
+  25% {
+    opacity: 1;
+    transform: translateX(30px) translateY(-30px) scale(1.2) rotate(10deg);
+  }
+  50% {
+    transform: translateX(-20px) translateY(-60px) scale(1.1) rotate(-5deg);
+  }
+  100% {
+    opacity: 0;
+    transform: translateX(20px) translateY(-100px) scale(0.8) rotate(5deg);
+  }
+}
+
+/* ==========================================
+   COMBAT ANIMATIONS
+   ========================================== */
+
+/* Attack animation */
+.combatant-sprite.attacking {
+  animation: attackBounce 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes attackBounce {
+  0% { transform: translateY(0) scale(1) rotate(0deg); }
+  25% { transform: translateY(-15px) scale(1.1) rotate(-5deg); }
+  40% { transform: translateX(20px) translateY(-10px) scale(1.15) rotate(5deg); }
+  60% { transform: translateX(10px) translateY(-5px) scale(1.1) rotate(-2deg); }
+  100% { transform: translateY(0) scale(1) rotate(0deg); }
+}
+
+/* Hit/damage taken animation */
+.combatant-sprite.hit {
+  animation: hitFlash 0.5s ease-in-out;
+}
+
+@keyframes hitFlash {
+  0%, 100% { 
+    filter: brightness(1) saturate(1);
+    transform: translateX(0);
+  }
+  20% { 
+    filter: brightness(1.8) saturate(2) hue-rotate(-30deg);
+    transform: translateX(-15px);
+  }
+  40% { 
+    filter: brightness(0.6) saturate(0.5);
+    transform: translateX(10px);
+  }
+  60% { 
+    filter: brightness(1.4) saturate(1.5);
+    transform: translateX(-8px);
+  }
+  80% { 
+    filter: brightness(0.8) saturate(0.8);
+    transform: translateX(5px);
+  }
+}
+
+/* Defend/guard animation */
+.combatant-sprite.defending {
+  animation: defendPulse 0.7s ease-in-out;
+}
+
+@keyframes defendPulse {
+  0%, 100% { 
+    transform: scale(1);
+    box-shadow: 0 0 40px rgba(79,195,247,0.6);
+  }
+  50% { 
+    transform: scale(1.15);
+    box-shadow: 
+      0 0 60px rgba(79,195,247,1),
+      0 0 100px rgba(79,195,247,0.6),
+      inset 0 0 40px rgba(79,195,247,0.4);
+  }
+}
+
+/* ==========================================
+   STEP 6: PLAYER ACTION MENU (BOTTOM BAR)
+   ========================================== */
+
+/* Override command panel for combat mode */
+body.in-combat #command-panel {
+  z-index: 110;
+  background: 
+    linear-gradient(135deg, rgba(15,25,40,0.98), rgba(10,20,35,0.96)),
+    radial-gradient(circle at bottom, rgba(79,195,247,0.15), transparent 60%);
+  border-top: 3px solid rgba(79,195,247,0.5);
+  box-shadow: 
+    0 -8px 32px rgba(0,0,0,0.9),
+    0 0 40px rgba(79,195,247,0.3),
+    inset 0 1px 0 rgba(255,255,255,0.1);
+  padding: 16px 20px;
+  backdrop-filter: blur(16px) saturate(150%);
+}
+
+/* Action buttons redesign */
+body.in-combat #command-panel .actions {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  max-width: 700px;
+  margin: 0 auto 10px;
+}
+
+body.in-combat #command-panel button {
+  flex: 1 1 auto;
+  min-width: 110px;
+  max-width: 160px;
+  padding: 14px 20px;
+  font-size: 15px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  
+  background: 
+    linear-gradient(135deg, rgba(30,50,80,0.9), rgba(20,40,70,0.85)),
+    radial-gradient(circle at top left, rgba(79,195,247,0.2), transparent 70%);
+  
+  border: 2px solid rgba(79,195,247,0.5);
+  border-radius: 10px;
+  color: #e8f4f8;
+  
+  box-shadow: 
+    0 4px 16px rgba(0,0,0,0.6),
+    0 0 20px rgba(79,195,247,0.2),
+    inset 0 1px 0 rgba(255,255,255,0.1),
+    inset 0 -1px 0 rgba(0,0,0,0.3);
+  
+  transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+  cursor: pointer;
+  position: relative;
+  overflow: hidden;
+}
+
+/* Button hover effect */
+body.in-combat #command-panel button:hover:not(:disabled) {
+  background: 
+    linear-gradient(135deg, rgba(40,70,110,0.95), rgba(30,60,100,0.9)),
+    radial-gradient(circle at top left, rgba(79,195,247,0.3), transparent 70%);
+  
+  border-color: rgba(79,195,247,0.8);
+  color: #ffffff;
+  transform: translateY(-2px) scale(1.05);
+  
+  box-shadow: 
+    0 6px 20px rgba(0,0,0,0.8),
+    0 0 30px rgba(79,195,247,0.5),
+    inset 0 1px 0 rgba(255,255,255,0.2);
+}
+
+/* Button active/pressed effect */
+body.in-combat #command-panel button:active:not(:disabled) {
+  transform: translateY(1px) scale(0.98);
+  box-shadow: 
+    0 2px 8px rgba(0,0,0,0.8),
+    inset 0 2px 8px rgba(0,0,0,0.4);
+}
+
+/* Button disabled state */
+body.in-combat #command-panel button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  filter: grayscale(0.7);
+  transform: none;
+  box-shadow: 
+    0 2px 8px rgba(0,0,0,0.4),
+    inset 0 1px 0 rgba(0,0,0,0.2);
+}
+
+/* Shimmer effect on hover */
+body.in-combat #command-panel button:hover:not(:disabled)::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, 
+    transparent, 
+    rgba(255,255,255,0.3), 
+    transparent
+  );
+  animation: buttonShimmer 0.6s;
+}
+
+@keyframes buttonShimmer {
+  to { left: 100%; }
+}
+
+/* Specific button styling with icons */
+#btn-attack::before {
+  content: '⚔️ ';
+  font-size: 18px;
+  margin-right: 4px;
+}
+
+#btn-skill-combat::before {
+  content: '✨ ';
+  font-size: 18px;
+  margin-right: 4px;
+}
+
+#btn-use-item::before {
+  content: '🧪 ';
+  font-size: 18px;
+  margin-right: 4px;
+}
+
+#btn-defend::before {
+  content: '🛡️ ';
+  font-size: 18px;
+  margin-right: 4px;
+}
+
+#btn-flee::before {
+  content: '🏃 ';
+  font-size: 18px;
+  margin-right: 4px;
+}
+
+/* Hide non-combat buttons */
+body.in-combat .command-footer {
+  display: none;
+}
+
+/* ==========================================
+   MOBILE RESPONSIVE ADJUSTMENTS
+   ========================================== */
+
+@media (max-width: 768px) {
+  /* Smaller combat log */
+  .combat-log-overlay {
+    top: 12px;
+    width: 95%;
+    max-height: 120px;
+    padding: 12px 16px;
+    border-radius: 10px;
+  }
+  
+  .combat-log-line {
+    font-size: 13px;
+    padding: 6px 10px;
+  }
+  
+  /* Smaller character sprites */
+  .combatant-sprite {
+    width: 100px;
+    height: 100px;
+    font-size: 70px;
+  }
+  
+  /* Adjusted positioning */
+  .player-side {
+    left: 5%;
+    bottom: 15%;
+  }
+  
+  .enemy-side {
+    right: 5%;
+    bottom: 15%;
+  }
+  
+  /* Compact stat bars */
+  .combatant-info {
+    min-width: 180px;
+    padding: 10px 12px;
+    gap: 8px;
+  }
+  
+  .combatant-name {
+    font-size: 15px;
+  }
+  
+  .stat-bar {
+    height: 20px;
+  }
+  
+  .stat-bar-label {
+    font-size: 11px;
+    min-width: 25px;
+  }
+  
+  .stat-bar-text {
+    font-size: 11px;
+  }
+  
+  /* Smaller turn indicator */
+  .turn-text {
+    font-size: 48px;
+    letter-spacing: 3px;
+    padding: 15px 25px;
+  }
+  
+  /* Compact action buttons */
+  body.in-combat #command-panel button {
+    min-width: 80px;
+    max-width: 120px;
+    padding: 10px 14px;
+    font-size: 13px;
+  }
+  
+  body.in-combat #command-panel button::before {
+    font-size: 16px;
+  }
+  
+  /* Smaller damage numbers */
+  .damage-number {
+    font-size: 32px;
+  }
+  
+  .damage-number.critical {
+    font-size: 42px;
+  }
+  
+  .status-icon {
+    width: 28px;
+    height: 28px;
+    font-size: 16px;
+  }
+  
+  .status-icon::after {
+    width: 16px;
+    height: 16px;
+    font-size: 9px;
+  }
+}
+
+/* ==========================================
+   ACCESSIBILITY - REDUCED MOTION
+   ========================================== */
+
+@media (prefers-reduced-motion: reduce) {
+  .combat-stage,
+  .combat-log-overlay,
+  .combatant,
+  .combat-log-line,
+  .damage-number,
+  .turn-indicator,
+  body.in-combat #command-panel button {
+    animation: none !important;
+    transition: opacity 0.2s ease, transform 0.2s ease !important;
+  }
+  
+  .combatant-sprite::before,
+  .stat-bar-fill::after,
+  body.in-combat #command-panel button::before {
+    animation: none !important;
+  }
+  
+  .combatant-sprite {
+    animation: none !important;
+  }
+}
+
+/* ==========================================
+   THEME VARIANTS (FOR DIFFERENT FLOORS)
+   ========================================== */
+
+/* Forest theme (default - already styled above) */
+
+/* Ice theme variant */
+body.theme-ice .combat-stage {
+  background: 
+    radial-gradient(ellipse 800px 400px at 50% 20%, rgba(180,220,250,0.2), transparent 60%),
+    radial-gradient(ellipse at 50% 100%, rgba(150,200,240,0.3), transparent 65%),
+    linear-gradient(180deg, rgba(15,25,40,0.95), rgba(10,20,35,0.98)),
+    #0a1428;
+}
+
+body.theme-ice .combat-stage::before {
+  background: 
+    radial-gradient(ellipse 200px 400px at 15% 70%, rgba(180,220,250,0.15), transparent 70%),
+    linear-gradient(to bottom, transparent 60%, rgba(150,200,240,0.2) 100%);
+}
+
+/* Volcano theme variant */
+body.theme-volcano .combat-stage {
+  background: 
+    radial-gradient(ellipse 800px 400px at 50% 80%, rgba(255,100,50,0.3), transparent 60%),
+    radial-gradient(ellipse at 50% 100%, rgba(200,50,20,0.4), transparent 65%),
+    linear-gradient(180deg, rgba(40,15,10,0.95), rgba(30,10,5,0.98)),
+    #1a0a05;
+}
+
+body.theme-volcano .combat-stage::after {
+  border-top-color: rgba(255,100,50,0.5);
+  background: 
+    linear-gradient(to top, rgba(80,20,10,0.95), transparent);
+}

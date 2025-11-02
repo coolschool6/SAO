@@ -219,8 +219,10 @@ const FLOOR_DEFS = {
 
 // Skill definitions
 const SKILLS = {
-  vertical_arc: {id:'vertical_arc',name:'Vertical Arc',type:'active',desc:'A heavy strike that deals 1.5x ATK damage. Cooldown: 2',cost:0,cooldown:2},
-  quick_heal: {id:'quick_heal',name:'Quick Heal',type:'active',desc:'Restore a portion of max HP. Cooldown:3',cost:0,cooldown:3},
+  vertical_arc: {id:'vertical_arc',name:'Vertical Arc',type:'active',desc:'A heavy strike that deals 1.5x ATK damage. Cooldown: 2',cost:0,cooldown:2,spCost:10},
+  quick_heal: {id:'quick_heal',name:'Quick Heal',type:'active',desc:'Restore a portion of max HP. Cooldown:3',cost:0,cooldown:3,spCost:12},
+  stance_change: {id:'stance_change',name:'Stance Change',type:'active',desc:'Adopt a guarded stance: reduce damage taken for 2 turns. Cooldown:4',cost:0,cooldown:4,spCost:8},
+  burst_strike: {id:'burst_strike',name:'Burst Strike',type:'active',desc:'Deal 2x damage but suffer Weakened (take more damage) for 1 turn. Cooldown:4',cost:0,cooldown:4,spCost:15},
   battle_focus: {id:'battle_focus',name:'Battle Focus',type:'passive',desc:'Small chance to critically strike more often.',cost:1},
   survival_instinct: {id:'survival_instinct',name:'Survival Instinct',type:'passive',desc:'Increase max HP on level up.',cost:1}
 };

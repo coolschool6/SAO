@@ -1,0 +1,9 @@
+{
+  "name": "sao-battle-ui",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Static server for SAO battle UI on localhost:5500",
+  "scripts": {
+    "start": "node server.js"
+  }
+}
