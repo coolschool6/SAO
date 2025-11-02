@@ -338,6 +338,22 @@ body.in-combat #command-panel {
 	border-top: 2px solid rgba(79,195,247,0.6);
 }
 
+/* Hide command panel during new battle screen */
+body.in-battle #command-panel {
+	display: none;
+}
+
+/* On mobile, ensure battle screen elements are visible */
+@media (max-width: 768px) {
+	body.in-battle #command-panel {
+		display: none !important;
+	}
+	
+	body.in-battle #top-hud {
+		display: none;
+	}
+}
+
 #command-panel::before{
 	content:'';
 	position:absolute;

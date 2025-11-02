@@ -7,6 +7,33 @@
   // Utility functions
   function rand(min, max){ return Math.floor(Math.random()*(max-min+1))+min }
   function clamp(v,a,b){ return Math.max(a,Math.min(b,v)) }
+  
+  // Performance optimization: Debounce function to limit UI update frequency
+  function debounce(func, wait) {
+    let timeout;
+    return function executedFunction(...args) {
+      const later = () => {
+        clearTimeout(timeout);
+        func(...args);
+      };
+      clearTimeout(timeout);
+      timeout = setTimeout(later, wait);
+    };
+  }
+  
+  // Performance optimization: Request animation frame throttle
+  function throttleRAF(func) {
+    let scheduled = false;
+    return function(...args) {
+      if (!scheduled) {
+        scheduled = true;
+        requestAnimationFrame(() => {
+          func.apply(this, args);
+          scheduled = false;
+        });
+      }
+    };
+  }
 
   // Character Archetypes
   const ARCHETYPES = {
@@ -72,6 +99,8 @@
       this.tutorialComplete = false;
       // Faction reputation (affects prices, events, quest access)
       this.reputation = { faune: 0, fae: 0, merchants: 0 };
+      // NPC unlock system - NPCs are discovered naturally through gameplay
+      this.unlockedNPCs = ['npc_argo']; // Start with Argo the information broker
     }
     nextXp(){ return 50 + Math.floor(60 * (this.level-1) * 1.3) }
     addXp(amount){
@@ -113,7 +142,8 @@
         npcsTalked: this.npcsTalked, archetype: this.archetype, comboCount: this.comboCount, maxCombo: this.maxCombo,
         acceptedOriginalQuestIds: this.acceptedOriginalQuestIds, finishedOriginalQuestIds: this.finishedOriginalQuestIds,
         tutorialComplete: this.tutorialComplete,
-        reputation: this.reputation
+        reputation: this.reputation,
+        unlockedNPCs: this.unlockedNPCs
       };
     }
     
@@ -121,6 +151,8 @@
       Object.assign(this, data);
       // ensure reputation exists for old saves
       if(!this.reputation) this.reputation = { faune: 0, fae: 0, merchants: 0 };
+      // ensure unlockedNPCs exists for old saves
+      if(!this.unlockedNPCs) this.unlockedNPCs = ['npc_argo', 'npc_agil', 'npc_lind']; // Give old players first 3 NPCs
       // ensure SP exists for old saves
       if(!this.maxSP) this.maxSP = 50;
       if(this.sp === undefined) this.sp = this.maxSP;
@@ -201,6 +233,47 @@ class Game {
       this.inventory = new Inventory();
       // starting item for demo
       this.inventory.addItem({name:'Healing Herb',type:'consumable',heal:20});
+      
+      // Performance optimization: Throttled UI update
+      this._updateUIImmediate = this.updateUI.bind(this);
+      this.updateUI = throttleRAF(this._updateUIImmediate);
+      
+      // Performance optimization: Debounced combat UI update
+      this._updateCombatUIImmediate = this.updateCombatUI.bind(this);
+      this.updateCombatUI = debounce(this._updateCombatUIImmediate, 50);
+      
+      // Performance optimization: Cache frequently accessed DOM elements
+      this.domCache = {
+        playerName: document.getElementById('player-name'),
+        playerLevel: document.getElementById('player-level'),
+        playerXp: document.getElementById('player-xp'),
+        playerNextXp: document.getElementById('player-nextxp'),
+        playerHp: document.getElementById('player-hp'),
+        playerMaxHp: document.getElementById('player-maxhp'),
+        playerAtk: document.getElementById('player-atk'),
+        playerDef: document.getElementById('player-def'),
+        playerDex: document.getElementById('player-dex'),
+        playerLuck: document.getElementById('player-luck'),
+        playerArchetype: document.getElementById('player-archetype'),
+        playerGold: document.getElementById('player-gold'),
+        playerFloor: document.getElementById('player-floor'),
+        questCount: document.getElementById('quest-count'),
+        playerPoints: document.getElementById('player-points'),
+        playerSkillpoints: document.getElementById('player-skillpoints'),
+        playerTokens: document.getElementById('player-tokens'),
+        xpBar: document.getElementById('xp-bar'),
+        hpBar: document.getElementById('hp-bar'),
+        btnAllocateSkills: document.getElementById('btn-allocate-skills'),
+        btnAllocateStats: document.getElementById('btn-allocate-stats'),
+        btnArchetype: document.getElementById('btn-archetype'),
+        achievementCount: document.getElementById('achievement-count'),
+        achievementTotal: document.getElementById('achievement-total'),
+        questProgressBars: document.getElementById('quest-progress-bars'),
+        repFaune: document.getElementById('rep-faune'),
+        repFae: document.getElementById('rep-fae'),
+        repMerchants: document.getElementById('rep-merchants')
+      };
+      
       this.logEl = document.getElementById('log-entries');
       this.questListEl = document.getElementById('quest-list');
       this.inventoryListEl = document.getElementById('inventory-list');
@@ -823,67 +896,69 @@ class Game {
     
     updateUI(){
       const p = this.player;
+      const c = this.domCache; // Use cached elements
+      
       this.setBackgroundForFloor();
-      document.getElementById('player-name').textContent = p.name;
-      document.getElementById('player-level').textContent = p.level;
-      document.getElementById('player-xp').textContent = p.xp;
-      document.getElementById('player-nextxp').textContent = p.nextXp();
-      document.getElementById('player-hp').textContent = p.hp;
-      document.getElementById('player-maxhp').textContent = p.maxHP;
-      document.getElementById('player-atk').textContent = p.atk;
-      document.getElementById('player-def').textContent = p.def;
-      const dexEl = document.getElementById('player-dex'); if(dexEl) dexEl.textContent = p.dex;
-      const luckEl = document.getElementById('player-luck'); if(luckEl) luckEl.textContent = p.luck;
-  const archEl = document.getElementById('player-archetype'); if(archEl) archEl.textContent = p.archetype ? (ARCHETYPES[p.archetype]?.name || p.archetype) : 'None';
-  const archBtn = document.getElementById('btn-archetype'); if(archBtn) archBtn.disabled = !!p.archetype;
-      document.getElementById('player-gold').textContent = p.gold;
-      document.getElementById('player-floor').textContent = p.floor;
-      document.getElementById('quest-count').textContent = p.quests.length;
-      const pointsEl = document.getElementById('player-points'); if(pointsEl) pointsEl.textContent = p.pendingStatPoints || 0;
-      const spEl = document.getElementById('player-skillpoints'); if(spEl) spEl.textContent = p.skillPoints || 0;
+      
+      // Update all UI elements using cache
+      if(c.playerName) c.playerName.textContent = p.name;
+      if(c.playerLevel) c.playerLevel.textContent = p.level;
+      if(c.playerXp) c.playerXp.textContent = p.xp;
+      if(c.playerNextXp) c.playerNextXp.textContent = p.nextXp();
+      if(c.playerHp) c.playerHp.textContent = p.hp;
+      if(c.playerMaxHp) c.playerMaxHp.textContent = p.maxHP;
+      if(c.playerAtk) c.playerAtk.textContent = p.atk;
+      if(c.playerDef) c.playerDef.textContent = p.def;
+      if(c.playerDex) c.playerDex.textContent = p.dex;
+      if(c.playerLuck) c.playerLuck.textContent = p.luck;
+      if(c.playerArchetype) c.playerArchetype.textContent = p.archetype ? (ARCHETYPES[p.archetype]?.name || p.archetype) : 'None';
+      if(c.btnArchetype) c.btnArchetype.disabled = !!p.archetype;
+      if(c.playerGold) c.playerGold.textContent = p.gold;
+      if(c.playerFloor) c.playerFloor.textContent = p.floor;
+      if(c.questCount) c.questCount.textContent = p.quests.length;
+      if(c.playerPoints) c.playerPoints.textContent = p.pendingStatPoints || 0;
+      if(c.playerSkillpoints) c.playerSkillpoints.textContent = p.skillPoints || 0;
+      
       // Show/hide Allocate SP button based on available skill points
-      const spBtn = document.getElementById('btn-allocate-skills');
-      if(spBtn){
+      if(c.btnAllocateSkills){
         if(p.skillPoints > 0){
-          spBtn.style.display = 'inline-block';
-          spBtn.textContent = `Allocate SP (${p.skillPoints})`;
+          c.btnAllocateSkills.style.display = 'inline-block';
+          c.btnAllocateSkills.textContent = `Allocate SP (${p.skillPoints})`;
         } else {
-          spBtn.style.display = 'none';
+          c.btnAllocateSkills.style.display = 'none';
         }
       }
+      
       // Show/hide Allocate Stats button when pending stat points are available
-      const statBtn = document.getElementById('btn-allocate-stats');
-      if(statBtn){
+      if(c.btnAllocateStats){
         const pending = p.pendingStatPoints || 0;
         if(pending > 0){
-          statBtn.style.display = 'inline-block';
-          statBtn.textContent = `Allocate Stats (${pending})`;
+          c.btnAllocateStats.style.display = 'inline-block';
+          c.btnAllocateStats.textContent = `Allocate Stats (${pending})`;
         } else {
-          statBtn.style.display = 'none';
+          c.btnAllocateStats.style.display = 'none';
         }
       }
-      const tokEl = document.getElementById('player-tokens'); if(tokEl) tokEl.textContent = p.tokens || 0;
-      const achCountEl = document.getElementById('achievement-count'); if(achCountEl) achCountEl.textContent = Object.keys(p.achievements || {}).length;
-      const achTotalEl = document.getElementById('achievement-total'); if(achTotalEl && window.ACHIEVEMENTS) achTotalEl.textContent = Object.keys(window.ACHIEVEMENTS).length;
+      
+      if(c.playerTokens) c.playerTokens.textContent = p.tokens || 0;
+      if(c.achievementCount) c.achievementCount.textContent = Object.keys(p.achievements || {}).length;
+      if(c.achievementTotal && window.ACHIEVEMENTS) c.achievementTotal.textContent = Object.keys(window.ACHIEVEMENTS).length;
 
       // HP/XP progress bars
-      const xpBar = document.getElementById('xp-bar');
-      if(xpBar) {
+      if(c.xpBar) {
         const xpPct = Math.min(100, Math.round((p.xp / p.nextXp()) * 100));
-        xpBar.style.width = xpPct + '%';
-        xpBar.style.background = 'linear-gradient(90deg,#4fc3f7,#1976a5)';
+        c.xpBar.style.width = xpPct + '%';
+        c.xpBar.style.background = 'linear-gradient(90deg,#4fc3f7,#1976a5)';
       }
-      const hpBar = document.getElementById('hp-bar');
-      if(hpBar) {
+      if(c.hpBar) {
         const hpPct = Math.min(100, Math.round((p.hp / p.maxHP) * 100));
-        hpBar.style.width = hpPct + '%';
-        hpBar.style.background = 'linear-gradient(90deg,#e53935,#fbc02d)';
+        c.hpBar.style.width = hpPct + '%';
+        c.hpBar.style.background = 'linear-gradient(90deg,#e53935,#fbc02d)';
       }
 
       // quests
       this.questListEl.innerHTML = '';
-      const questProgressBars = document.getElementById('quest-progress-bars');
-      if(questProgressBars) questProgressBars.innerHTML = '';
+      if(c.questProgressBars) c.questProgressBars.innerHTML = '';
       p.quests.forEach(q=>{
         const li = document.createElement('li');
         li.textContent = `${q.title} — ${q.desc} (${q.progress||0}/${q.target})`;
@@ -894,12 +969,12 @@ class Game {
         li.appendChild(btn);
         this.questListEl.appendChild(li);
         // Quest progress bar
-        if(questProgressBars && typeof q.target === 'number' && q.target > 1) {
+        if(c.questProgressBars && typeof q.target === 'number' && q.target > 1) {
           const pct = Math.min(100, Math.round(((q.progress||0) / q.target) * 100));
           const barWrap = document.createElement('div');
           barWrap.className = 'bar-wrap';
           barWrap.innerHTML = `<div class="bar-label">${q.title}</div><div class="bar-outer"><div class="bar-inner" style="width:${pct}%;background:linear-gradient(90deg,#ffd600,#4fc3f7)"></div></div>`;
-          questProgressBars.appendChild(barWrap);
+          c.questProgressBars.appendChild(barWrap);
         }
       });
   // inventory UI
@@ -910,6 +985,8 @@ class Game {
       this.updateQuestTracker();
       // Check achievements
       this.checkAchievements();
+      // Check for NPC unlocks
+      this.checkNPCUnlocks();
       // equipment panel render
       // Update combat skill button label to reflect cooldown (min of active)
       const btnSk = document.getElementById('btn-skill-combat');
@@ -923,9 +1000,9 @@ class Game {
       this.updateHud();
       // Update reputation display (in details)
       const rep = p.reputation || {faune:0, fae:0, merchants:0};
-      const r1 = document.getElementById('rep-faune'); if(r1) r1.textContent = rep.faune;
-      const r2 = document.getElementById('rep-fae'); if(r2) r2.textContent = rep.fae;
-      const r3 = document.getElementById('rep-merchants'); if(r3) r3.textContent = rep.merchants;
+      if(c.repFaune) c.repFaune.textContent = rep.faune;
+      if(c.repFae) c.repFae.textContent = rep.fae;
+      if(c.repMerchants) c.repMerchants.textContent = rep.merchants;
     }
 
     // Reputation and checks
@@ -2438,11 +2515,28 @@ class Game {
     }
 
     openNPCDialog(){
-      // Modal-based NPC dialog
-      const npcListHtml = this.npcs.map((n,i)=>{
-        return `<div class="npc-item" data-idx="${i}"><strong>${n.name}</strong><div class="muted">${n.desc}</div></div>`;
+      // Modal-based NPC dialog - only show unlocked NPCs
+      const unlockedIds = this.player.unlockedNPCs || ['npc_argo'];
+      const unlockedNPCs = this.npcs.filter(n => unlockedIds.includes(n.id));
+      
+      if(unlockedNPCs.length === 0){
+        this.showModal('NPCs', '<div class="muted">You haven\'t met any NPCs yet. Explore the world to discover them!</div>', [
+          {text:'Close',action:()=>this.hideModal()}
+        ]);
+        return;
+      }
+      
+      const npcListHtml = unlockedNPCs.map((n)=>{
+        const originalIndex = this.npcs.findIndex(npc => npc.id === n.id);
+        const isNew = !this.player.npcsTalked.includes(n.id);
+        const newBadge = isNew ? '<span style="color:#4fc3f7;font-size:12px;margin-left:8px">✨ NEW</span>' : '';
+        return `<div class="npc-item" data-idx="${originalIndex}"><strong>${n.name}</strong>${newBadge}<div class="muted">${n.desc}</div></div>`;
       }).join('');
-      this.showModal('NPCs', `<div style="display:flex;flex-direction:column;gap:8px">${npcListHtml}</div>`, [
+      
+      const lockedCount = this.npcs.length - unlockedNPCs.length;
+      const footerHtml = lockedCount > 0 ? `<div class="muted" style="margin-top:12px;text-align:center">🔒 ${lockedCount} more NPCs to discover</div>` : '';
+      
+      this.showModal('NPCs', `<div style="display:flex;flex-direction:column;gap:8px">${npcListHtml}${footerHtml}</div>`, [
         {text:'Close',action:()=>this.hideModal()}
       ]);
       // attach click handlers
@@ -2458,6 +2552,12 @@ class Game {
 
     showNPCOptions(npcIndex){
       const npc = this.npcs[npcIndex];
+      
+      // Mark NPC as talked to
+      if(!this.player.npcsTalked.includes(npc.id)){
+        this.player.npcsTalked.push(npc.id);
+      }
+      
       const optsHtml = `
         <div style="display:flex;flex-direction:column;gap:8px">
           <div><strong>${npc.name}</strong><div class="muted">${npc.desc}</div></div>
@@ -2478,6 +2578,91 @@ class Game {
         if(act==='gossip'){ this.hideModal(); this.npcGossip(npcIndex); }
         if(act==='exchange'){ this.hideModal(); this.npcExchange(npcIndex); }
       }));
+    }
+    
+    // Unlock NPC system - called when conditions are met
+    unlockNPC(npcId, reason = 'discovery'){
+      if(!this.player.unlockedNPCs) this.player.unlockedNPCs = ['npc_argo'];
+      
+      // Check if already unlocked
+      if(this.player.unlockedNPCs.includes(npcId)) return;
+      
+      // Find NPC by ID
+      const npc = this.npcs.find(n => n.id === npcId);
+      if(!npc) return;
+      
+      // Unlock the NPC
+      this.player.unlockedNPCs.push(npcId);
+      
+      // Show unlock notification
+      this.logEvent('info', `🎭 New NPC discovered: ${npc.name}!`);
+      this.showAchievementPopup({
+        name: 'NPC Discovered',
+        desc: `You've met ${npc.name}`,
+        icon: '🎭'
+      });
+      
+      try { this.save(); } catch(e) {}
+    }
+    
+    // Check for NPC unlocks based on game progress
+    checkNPCUnlocks(){
+      const p = this.player;
+      
+      // Agil - Unlock at level 2 or when you have 50+ gold
+      if((p.level >= 2 || p.gold >= 50) && !this.player.unlockedNPCs.includes('npc_agil')){
+        this.unlockNPC('npc_agil', 'Found the friendly merchant');
+      }
+      
+      // Lind - Unlock at level 4 or after first boss kill
+      if((p.level >= 4 || p.bossKills >= 1) && !this.player.unlockedNPCs.includes('npc_lind')){
+        this.unlockNPC('npc_lind', 'Met the guild leader');
+      }
+      
+      // Kibaou - Unlock at level 5 or after 20 kills
+      if((p.level >= 5 || p.kills >= 20) && !this.player.unlockedNPCs.includes('npc_kibaou')){
+        this.unlockNPC('npc_kibaou', 'Encountered the aggressive player');
+      }
+      
+      // Blacksmith - Unlock at level 6 or on floor 2+
+      if((p.level >= 6 || p.floor >= 2) && !this.player.unlockedNPCs.includes('npc_blacksmith')){
+        this.unlockNPC('npc_blacksmith', 'Found the Horunka blacksmith');
+      }
+      
+      // Forest Hermit - Unlock on floor 3+ or with 10+ completed quests
+      if((p.floor >= 3 || p.questsCompleted >= 10) && !this.player.unlockedNPCs.includes('npc_old_hermit')){
+        this.unlockNPC('npc_old_hermit', 'Discovered the forest hermit');
+      }
+      
+      // Rex - Unlock on floor 2+
+      if(p.floor >= 2 && !this.player.unlockedNPCs.includes('npc_rex')){
+        this.unlockNPC('npc_rex', 'Found the Rusty Dagger tavern');
+      }
+      
+      // Marome Guard Captain - Unlock on floor 3+
+      if(p.floor >= 3 && !this.player.unlockedNPCs.includes('npc_marome_captain')){
+        this.unlockNPC('npc_marome_captain', 'Met the fortress commander');
+      }
+      
+      // Taran Sentinel - Unlock on floor 4+
+      if(p.floor >= 4 && !this.player.unlockedNPCs.includes('npc_taran_sentinel')){
+        this.unlockNPC('npc_taran_sentinel', 'Reached Taran Village');
+      }
+      
+      // Crystal Miner - Unlock on floor 5+ or with 50+ kills
+      if((p.floor >= 5 || p.kills >= 50) && !this.player.unlockedNPCs.includes('npc_crystal_miner')){
+        this.unlockNPC('npc_crystal_miner', 'Found the crystal caves');
+      }
+      
+      // Flora Festival Organizer - Unlock on floor 6+ or with high reputation
+      if((p.floor >= 6 || p.reputation.merchants >= 3) && !this.player.unlockedNPCs.includes('npc_flora_organizer')){
+        this.unlockNPC('npc_flora_organizer', 'Discovered the High Fields festival');
+      }
+      
+      // Faune Elder - Unlock on floor 7+ or with positive faune reputation
+      if((p.floor >= 7 || p.reputation.faune >= 2) && !this.player.unlockedNPCs.includes('npc_faune_elder')){
+        this.unlockNPC('npc_faune_elder', 'Gained trust of the Faune people');
+      }
     }
 
     npcGossip(npcIndex){
@@ -2647,11 +2832,16 @@ class Game {
     }
 
     // Archetype Selection Modal
-    showArchetypeModal(){
+    showArchetypeModal(callback = null){
       if(this.player.archetype){
         this.showModal('Archetype', `<div>You've already chosen the <strong>${ARCHETYPES[this.player.archetype]?.name}</strong> archetype. This choice is permanent for your journey.</div>`, [{text:'Close', action:()=>this.hideModal()}]);
         return;
       }
+      
+      const tutorialStatus = this.player.skipTutorial ? 
+        '<div style="color:#4fc3f7;font-size:12px;margin-bottom:12px">📝 Step 2/2: Choose Archetype (Tutorial will be skipped)</div>' : 
+        '<div style="color:#4fc3f7;font-size:12px;margin-bottom:12px">📝 Step 2/3: Choose Archetype</div>';
+      
       const html = Object.values(ARCHETYPES).map((arch,i)=> `
         <div style="background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.06);border-radius:8px;padding:12px;margin-bottom:10px">
           <div style="display:flex;justify-content:space-between;align-items:center">
@@ -2666,7 +2856,7 @@ class Game {
           </div>
         </div>
       `).join('');
-      this.showModal('Choose Your Archetype', `<div style="margin-bottom:8px">Select an archetype to define your playstyle. This choice is permanent.</div>${html}`, [{text:'Cancel', action:()=>this.hideModal()}]);
+      this.showModal('Choose Your Archetype', `${tutorialStatus}<div style="margin-bottom:8px">Select an archetype to define your playstyle. This choice is permanent.</div>${html}`, [{text:'Cancel', action:()=>this.hideModal()}]);
       const body = document.getElementById('modal-body');
       body.querySelectorAll('button[data-arch]').forEach(btn=> btn.addEventListener('click', ()=>{
         const id = btn.getAttribute('data-arch');
@@ -2682,11 +2872,21 @@ class Game {
         this.hideModal();
         this.updateUI();
         
-        // Continue tutorial if player hasn't completed it
-        if(!this.player.tutorialComplete) {
-          setTimeout(()=> this.showTutorialStep1(), 500);
+        // Call callback if provided (for new player flow)
+        if(callback) {
+          callback();
+        } else {
+          // Original behavior: continue tutorial if player hasn't completed it
+          if(!this.player.tutorialComplete) {
+            setTimeout(()=> this.showTutorialStep1(), 500);
+          }
         }
       }));
+    }
+    
+    // Wrapper for new player flow with callback
+    showArchetypeModalWithCallback(callback) {
+      this.showArchetypeModal(callback);
     }
 
     // Pause game and show stat allocation UI for pending stat points
@@ -2977,7 +3177,7 @@ class Game {
 
     // ---------- Auto-save system ----------
     initAutoSave(){
-      // Auto-save every 30 seconds
+      // Auto-save every 2 minutes (reduced from 30 seconds for better performance)
       this.autoSaveTimer = setInterval(()=> {
         try {
           this.save();
@@ -2985,24 +3185,30 @@ class Game {
         } catch(e) {
           console.error('[Auto-save] Failed:', e);
         }
-      }, 30000); // 30 seconds
+      }, 120000); // 2 minutes = 120000ms
     }
 
     // ---------- New player onboarding ----------
     checkNewPlayer(){
       const hasSave = localStorage.getItem(SAVE_KEY);
-      if(!hasSave || !this.player.tutorialComplete){
-        // New player - start onboarding flow
+      console.log('[New Player Check] Has save:', !!hasSave);
+      console.log('[New Player Check] Player name:', this.player.name);
+      console.log('[New Player Check] Player archetype:', this.player.archetype);
+      
+      // Show welcome screen if: no save OR player hasn't completed character creation
+      if(!hasSave || this.player.name === 'Player' && !this.player.archetype){
+        // New player or incomplete character creation
         this.updateUI();
         setTimeout(()=> this.showWelcomeModal(), 800);
       } else {
-        // Returning player
+        // Returning player with completed character
         this.updateUI();
         this.log('Welcome back! Your adventure continues.');
       }
     }
 
     showWelcomeModal() {
+      console.log('[Welcome Modal] Showing welcome modal...');
       const html = `
         <div style="text-align:center;padding:20px">
           <h2 style="color:#4fc3f7;margin-bottom:16px">⚔️ Welcome to Sword Art Online ⚔️</h2>
@@ -3024,19 +3230,25 @@ class Game {
         </div>
       `;
       this.showModal('Welcome to SAO', html, [
-        {text:'Begin Tutorial', action:()=> this.showNameInput()},
-        {text:'Skip (Experienced Players)', action:()=> {
+        {text:'🎓 New Player (With Tutorial)', action:()=> {
+          this.player.skipTutorial = false;
+          this.showNameInput();
+        }},
+        {text:'⚔️ Experienced Player (Skip Tutorial)', action:()=> {
+          this.player.skipTutorial = true;
           this.player.tutorialComplete = true;
-          this.hideModal();
-          this.logEvent('info','Tutorial skipped. Good luck, and stay alive!');
-          this.updateUI();
+          this.showNameInput();
         }}
       ]);
     }
 
     showNameInput() {
+      const tutorialStatus = this.player.skipTutorial ? 
+        '<div style="color:#4fc3f7;font-size:12px;margin-bottom:8px">📝 Step 1/2: Choose Name (Tutorial will be skipped)</div>' : 
+        '<div style="color:#4fc3f7;font-size:12px;margin-bottom:8px">📝 Step 1/3: Choose Name</div>';
       const html = `
         <div style="padding:12px">
+          ${tutorialStatus}
           <div style="margin-bottom:12px">Choose your in-game name. This will be your identity in Aincrad.</div>
           <input type="text" id="player-name-input" placeholder="Enter your name" 
                  style="width:100%;padding:10px;font-size:16px;border-radius:6px;border:1px solid rgba(255,255,255,0.2);background:rgba(0,0,0,0.3);color:#fff" 
@@ -3045,33 +3257,59 @@ class Game {
         </div>
       `;
       this.showModal('Choose Your Name', html, [
-        {text:'Confirm', action:()=> {
+        {text:'✓ Confirm Name', action:()=> {
           const input = document.getElementById('player-name-input');
           const name = (input?.value || '').trim();
-          if(name.length < 2) { this.logEvent('info','Name must be at least 2 characters.'); return; }
+          if(name.length < 2) { 
+            alert('Name must be at least 2 characters.');
+            return; 
+          }
           this.player.name = name;
           this.hideModal();
           this.logEvent('info', `Welcome, ${name}!`);
           this.showArchetypeSelection();
           this.updateUI();
         }},
-        {text:'Skip (use Player)', action:()=> { 
+        {text:'Use "Player"', action:()=> { 
           this.player.name = 'Player'; 
           this.hideModal(); 
           this.showArchetypeSelection(); 
           this.updateUI();
         }}
       ]);
-      // Auto-focus input
+      // Auto-focus input and handle Enter key
       setTimeout(()=> {
         const input = document.getElementById('player-name-input');
-        if(input) input.focus();
+        if(input) {
+          input.focus();
+          input.addEventListener('keypress', (e) => {
+            if(e.key === 'Enter') {
+              const name = input.value.trim();
+              if(name.length >= 2) {
+                this.player.name = name;
+                this.hideModal();
+                this.logEvent('info', `Welcome, ${name}!`);
+                this.showArchetypeSelection();
+                this.updateUI();
+              } else {
+                alert('Name must be at least 2 characters.');
+              }
+            }
+          });
+        }
       }, 100);
     }
 
     showArchetypeSelection() {
       this.logEvent('info', 'Choose your archetype to define your playstyle.');
-      this.showArchetypeModal();
+      // Show archetype modal, then trigger tutorial if not skipped
+      this.showArchetypeModalWithCallback(() => {
+        if(!this.player.skipTutorial && !this.player.tutorialComplete) {
+          setTimeout(()=> this.showTutorialStep1(), 500);
+        } else {
+          this.logEvent('info', 'Adventure begins! Good luck, and stay alive!');
+        }
+      });
     }
 
     showTutorialStep1() {

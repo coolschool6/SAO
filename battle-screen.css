@@ -1,7 +1,14 @@
 /* ============================================
    PROFESSIONAL RPG BATTLE SCREEN UI
    Complete visual overhaul matching reference design
+   OPTIMIZED FOR PERFORMANCE
    ============================================ */
+
+/* Performance optimizations: GPU acceleration for all animated elements */
+* {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
 
 /* ==========================================
    MAIN BATTLE CONTAINER
@@ -13,20 +20,23 @@
   left: 0;
   width: 100%;
   height: 100%;
+  width: 100vw;
+  height: 100vh;
   z-index: 200;
   overflow: hidden;
   font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
   animation: battleScreenFadeIn 0.8s ease-out;
+  /* GPU acceleration */
+  will-change: opacity;
+  transform: translateZ(0);
 }
 
 @keyframes battleScreenFadeIn {
   from {
     opacity: 0;
-    filter: blur(20px);
   }
   to {
     opacity: 1;
-    filter: blur(0);
   }
 }
 
@@ -92,18 +102,11 @@
     );
   z-index: 2;
   pointer-events: none;
-  animation: forestSway 25s ease-in-out infinite;
-}
-
-@keyframes forestSway {
-  0%, 100% {
-    opacity: 0.85;
-    transform: translateX(0);
-  }
-  50% {
-    opacity: 0.95;
-    transform: translateX(2px);
-  }
+  /* Removed heavy animation for performance */
+  opacity: 0.9;
+  /* GPU acceleration */
+  will-change: auto;
+  transform: translateZ(0);
 }
 
 /* Ground/battlefield floor */
@@ -163,8 +166,9 @@
     ),
     radial-gradient(circle at top, rgba(79, 195, 247, 0.15), transparent 60%);
   
-  backdrop-filter: blur(20px) saturate(180%);
-  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  /* Reduced blur for better performance */
+  backdrop-filter: blur(8px) saturate(150%);
+  -webkit-backdrop-filter: blur(8px) saturate(150%);
   
   border-radius: 14px;
   border: 2px solid rgba(79, 195, 247, 0.4);
@@ -175,6 +179,9 @@
     inset 0 1px 0 rgba(255, 255, 255, 0.15);
   
   animation: bannerSlide 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+  /* GPU acceleration */
+  will-change: transform, opacity;
+  transform: translateX(-50%) translateZ(0);
 }
 
 @keyframes bannerSlide {
@@ -188,7 +195,7 @@
   }
 }
 
-/* Glowing animated border */
+/* Glowing animated border - optimized */
 .top-info-banner::before {
   content: '';
   position: absolute;
@@ -200,14 +207,14 @@
   );
   border-radius: 14px;
   z-index: -1;
-  animation: borderFlow 3s linear infinite;
-  opacity: 0.6;
+  opacity: 0.5;
+  /* Removed expensive animation for performance */
+  /* GPU acceleration */
+  will-change: auto;
+  transform: translateZ(0);
 }
 
-@keyframes borderFlow {
-  0% { background-position: 0% 50%; }
-  100% { background-position: 200% 50%; }
-}
+/* Removed borderFlow animation for performance */
 
 .battle-log-text {
   font-size: 17px;
@@ -236,16 +243,19 @@
   gap: 20px;
   animation: playerEntrance 1s cubic-bezier(0.34, 1.56, 0.64, 1);
   filter: drop-shadow(0 15px 40px rgba(0, 0, 0, 0.8));
+  /* GPU acceleration */
+  will-change: transform, opacity;
+  transform: translateZ(0);
 }
 
 @keyframes playerEntrance {
   from {
     opacity: 0;
-    transform: translateX(-150px) scale(0.7);
+    transform: translateX(-150px) scale(0.7) translateZ(0);
   }
   to {
     opacity: 1;
-    transform: translateX(0) scale(1);
+    transform: translateX(0) scale(1) translateZ(0);
   }
 }
 
@@ -270,19 +280,23 @@
     0 0 100px rgba(79, 195, 247, 0.3),
     inset 0 0 40px rgba(79, 195, 247, 0.15);
   
-  animation: playerIdle 3s ease-in-out infinite;
+  /* Simplified idle animation for performance */
+  animation: playerIdle 4s ease-in-out infinite;
+  /* GPU acceleration */
+  will-change: transform;
+  transform: translateZ(0);
 }
 
 @keyframes playerIdle {
   0%, 100% {
-    transform: translateY(0) scale(1);
+    transform: translateY(0) translateZ(0);
   }
   50% {
-    transform: translateY(-10px) scale(1.02);
+    transform: translateY(-8px) translateZ(0);
   }
 }
 
-/* Rotating aura effect */
+/* Rotating aura effect - simplified for performance */
 .player-character-art::before {
   content: '';
   position: absolute;
@@ -295,12 +309,16 @@
     transparent 360deg
   );
   border-radius: 50%;
-  animation: auraRotate 6s linear infinite;
+  /* Slowed down for performance */
+  animation: auraRotate 8s linear infinite;
   z-index: -1;
+  /* GPU acceleration */
+  will-change: transform;
+  transform: translateZ(0);
 }
 
 @keyframes auraRotate {
-  to { transform: rotate(360deg); }
+  to { transform: rotate(360deg) translateZ(0); }
 }
 
 .character-placeholder {
@@ -341,8 +359,9 @@
     linear-gradient(135deg, rgba(15, 25, 40, 0.95), rgba(10, 20, 35, 0.92)),
     radial-gradient(circle at top, rgba(79, 195, 247, 0.2), transparent 70%);
   
-  backdrop-filter: blur(16px) saturate(150%);
-  -webkit-backdrop-filter: blur(16px) saturate(150%);
+  /* Reduced blur for better performance */
+  backdrop-filter: blur(6px) saturate(140%);
+  -webkit-backdrop-filter: blur(6px) saturate(140%);
   
   border-radius: 12px;
   border: 2px solid rgba(79, 195, 247, 0.5);
@@ -351,6 +370,10 @@
     0 10px 40px rgba(0, 0, 0, 0.9),
     0 0 30px rgba(79, 195, 247, 0.25),
     inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  
+  /* GPU acceleration */
+  will-change: auto;
+  transform: translateZ(0);
 }
 
 /* Inner frame decoration */
@@ -456,29 +479,28 @@
     inset 0 2px 0 rgba(255, 255, 255, 0.3);
   
   border-radius: 13px;
-  transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1);
   position: relative;
   overflow: hidden;
+  /* GPU acceleration */
+  will-change: width;
+  transform: translateZ(0);
 }
 
-/* Animated shimmer on bars */
+/* Animated shimmer on bars - removed for performance */
 .stat-bar-fill::after {
   content: '';
   position: absolute;
   top: 0;
-  left: -100%;
+  left: 0;
   width: 100%;
   height: 100%;
   background: linear-gradient(90deg,
     transparent,
-    rgba(255, 255, 255, 0.4),
+    rgba(255, 255, 255, 0.2),
     transparent
   );
-  animation: barShimmer 3s infinite;
-}
-
-@keyframes barShimmer {
-  to { left: 100%; }
+  /* Removed expensive animation */
 }
 
 /* Value text overlay on bars */
@@ -513,16 +535,19 @@
   gap: 20px;
   animation: enemyEntrance 1s cubic-bezier(0.34, 1.56, 0.64, 1) 0.2s backwards;
   filter: drop-shadow(0 15px 40px rgba(0, 0, 0, 0.8));
+  /* GPU acceleration */
+  will-change: transform, opacity;
+  transform: translateZ(0);
 }
 
 @keyframes enemyEntrance {
   from {
     opacity: 0;
-    transform: translateX(150px) scale(0.7);
+    transform: translateX(150px) scale(0.7) translateZ(0);
   }
   to {
     opacity: 1;
-    transform: translateX(0) scale(1);
+    transform: translateX(0) scale(1) translateZ(0);
   }
 }
 
@@ -547,15 +572,19 @@
     0 0 100px rgba(229, 57, 53, 0.4),
     inset 0 0 40px rgba(229, 57, 53, 0.2);
   
-  animation: enemyIdle 2.5s ease-in-out infinite;
+  /* Simplified idle animation for performance */
+  animation: enemyIdle 3.5s ease-in-out infinite;
+  /* GPU acceleration */
+  will-change: transform;
+  transform: translateZ(0);
 }
 
 @keyframes enemyIdle {
   0%, 100% {
-    transform: translateY(0) scale(1) rotate(-3deg);
+    transform: translateY(0) translateZ(0);
   }
   50% {
-    transform: translateY(-8px) scale(1.02) rotate(3deg);
+    transform: translateY(-8px) translateZ(0);
   }
 }
 
@@ -803,9 +832,12 @@
     inset 0 1px 0 rgba(255, 255, 255, 0.15);
   
   cursor: pointer;
-  transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+  transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
   position: relative;
   overflow: hidden;
+  /* GPU acceleration */
+  will-change: transform;
+  transform: translateZ(0);
 }
 
 .action-btn:hover:not(:disabled) {
@@ -814,7 +846,7 @@
     radial-gradient(circle at top, rgba(79, 195, 247, 0.3), transparent 70%);
   
   border-color: rgba(79, 195, 247, 0.8);
-  transform: translateY(-4px) scale(1.05);
+  transform: translateY(-4px) scale(1.05) translateZ(0);
   
   box-shadow: 
     0 10px 30px rgba(0, 0, 0, 0.9),
@@ -823,7 +855,7 @@
 }
 
 .action-btn:active:not(:disabled) {
-  transform: translateY(-1px) scale(1);
+  transform: translateY(-1px) scale(1) translateZ(0);
   box-shadow: 
     0 4px 15px rgba(0, 0, 0, 0.8),
     inset 0 3px 10px rgba(0, 0, 0, 0.5);
@@ -835,24 +867,48 @@
   filter: grayscale(0.8);
 }
 
-/* Button shimmer on hover */
+/* Button shimmer on hover - removed animation for performance */
 .action-btn:hover:not(:disabled)::before {
   content: '';
   position: absolute;
   top: 0;
-  left: -100%;
+  left: 0;
   width: 100%;
   height: 100%;
   background: linear-gradient(90deg,
     transparent,
-    rgba(255, 255, 255, 0.3),
+    rgba(255, 255, 255, 0.15),
     transparent
   );
-  animation: btnShimmer 0.6s;
+  /* Removed animation */
 }
 
-@keyframes btnShimmer {
-  to { left: 100%; }
+/* Removed btnShimmer animation for performance */
+
+/* Touch device improvements */
+@media (hover: none) and (pointer: coarse) {
+  .action-btn {
+    /* Larger tap targets for mobile */
+    min-width: 60px;
+    padding: 12px 10px;
+  }
+  
+  .action-btn:active:not(:disabled) {
+    background: 
+      linear-gradient(135deg, rgba(40, 70, 110, 0.95), rgba(30, 60, 100, 0.9)),
+      radial-gradient(circle at top, rgba(79, 195, 247, 0.3), transparent 70%);
+    border-color: rgba(79, 195, 247, 0.8);
+    transform: scale(0.95);
+  }
+  
+  /* Disable hover effects on touch devices */
+  .action-btn:hover:not(:disabled) {
+    transform: none;
+  }
+  
+  .action-btn:hover:not(:disabled)::before {
+    animation: none;
+  }
 }
 
 .btn-icon {
@@ -1172,109 +1228,448 @@
    ========================================== */
 
 @media (max-width: 768px) {
+  .battle-screen-container {
+    overflow: hidden;
+  }
+  
   .top-info-banner {
-    top: 15px;
-    width: 95%;
-    padding: 12px 20px;
-    font-size: 14px;
+    top: 10px;
+    width: 96%;
+    padding: 10px 16px;
+    font-size: 13px;
+    max-width: 500px;
   }
   
   .battle-log-text {
-    font-size: 14px;
+    font-size: 13px;
+    line-height: 1.3;
   }
   
   .player-display,
   .enemy-display {
-    bottom: 80px;
+    bottom: 140px;
+    gap: 6px;
+  }
+  
+  .player-display {
+    left: 5%;
+  }
+  
+  .enemy-display {
+    right: 5%;
   }
   
   .player-character-art,
   .enemy-character-art {
-    width: 120px;
-    height: 120px;
+    width: 100px;
+    height: 100px;
   }
   
   .character-icon {
-    font-size: 60px;
+    font-size: 48px;
+  }
+  
+  .character-label {
+    font-size: 10px;
+    letter-spacing: 1px;
   }
   
   .player-stats-overlay,
   .enemy-stats-overlay {
-    width: 200px;
-    padding: 12px 16px;
-    gap: 8px;
+    width: 160px;
+    padding: 10px 12px;
+    gap: 6px;
   }
   
   .stat-bar-frame {
-    height: 24px;
+    height: 20px;
   }
   
   .stat-label {
-    font-size: 12px;
-    min-width: 28px;
+    font-size: 11px;
+    min-width: 24px;
   }
   
   .stat-bar-value {
-    font-size: 12px;
-  }
-  
-  .enemy-name-level {
-    font-size: 14px;
-  }
-  
-  .combo-meter {
-    bottom: 110px;
-    padding: 8px 16px;
-  }
-  
-  .combo-label {
-    font-size: 12px;
-  }
-  
-  .combo-value {
-    font-size: 20px;
-  }
-  
-  .player-action-menu {
-    bottom: 15px;
-    gap: 10px;
-    padding: 15px 20px;
-  }
-  
-  .action-btn {
-    min-width: 70px;
-    padding: 12px 14px;
-    gap: 4px;
-  }
-  
-  .btn-icon {
-    font-size: 24px;
-  }
-  
-  .btn-text {
     font-size: 11px;
   }
   
+  .enemy-name-level {
+    font-size: 13px;
+    margin-bottom: 6px;
+  }
+  
+  .combo-meter {
+    bottom: 120px;
+    right: 50%;
+    transform: translateX(50%);
+    padding: 6px 14px;
+  }
+  
+  .combo-label {
+    font-size: 11px;
+  }
+  
+  .combo-value {
+    font-size: 18px;
+  }
+  
+  .player-action-menu {
+    bottom: 10px;
+    gap: 8px;
+    padding: 12px 10px;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+  
+  .action-btn {
+    min-width: 60px;
+    padding: 10px 8px;
+    gap: 3px;
+    flex: 0 1 calc(20% - 8px);
+  }
+  
+  .btn-icon {
+    font-size: 20px;
+  }
+  
+  .btn-text {
+    font-size: 9px;
+    letter-spacing: 0.3px;
+  }
+  
+  .turn-indicator-new {
+    padding: 0 20px;
+  }
+  
   .turn-text-new {
-    font-size: 54px;
-    letter-spacing: 6px;
-    padding: 20px 40px;
+    font-size: 42px;
+    letter-spacing: 4px;
+    padding: 16px 32px;
   }
   
   .damage-number {
-    font-size: 36px;
+    font-size: 32px;
   }
   
   .damage-number.critical {
-    font-size: 48px;
+    font-size: 42px;
   }
   
   .ui-frame-corners .corner-tl,
   .ui-frame-corners .corner-tr,
   .ui-frame-corners .corner-bl,
   .ui-frame-corners .corner-br {
+    width: 60px;
+    height: 60px;
+    border-width: 2px;
+  }
+}
+
+/* Extra small mobile devices (phones in portrait) */
+@media (max-width: 480px) {
+  .top-info-banner {
+    top: 8px;
+    width: 94%;
+    padding: 8px 12px;
+    font-size: 12px;
+  }
+  
+  .battle-log-text {
+    font-size: 12px;
+  }
+  
+  .player-display,
+  .enemy-display {
+    bottom: 120px;
+    gap: 4px;
+  }
+  
+  .player-display {
+    left: 3%;
+  }
+  
+  .enemy-display {
+    right: 3%;
+  }
+  
+  .player-character-art,
+  .enemy-character-art {
     width: 80px;
     height: 80px;
+  }
+  
+  .character-icon {
+    font-size: 36px;
+  }
+  
+  .character-label {
+    font-size: 9px;
+    letter-spacing: 0.5px;
+  }
+  
+  .player-stats-overlay,
+  .enemy-stats-overlay {
+    width: 140px;
+    padding: 8px 10px;
+    gap: 5px;
+  }
+  
+  .stat-display {
+    gap: 4px;
+  }
+  
+  .stat-bar-frame {
+    height: 18px;
+  }
+  
+  .stat-label {
+    font-size: 10px;
+    min-width: 22px;
+  }
+  
+  .stat-bar-value {
+    font-size: 10px;
+  }
+  
+  .enemy-name-level {
+    font-size: 11px;
+    margin-bottom: 4px;
+  }
+  
+  .combo-meter {
+    bottom: 100px;
+    padding: 5px 12px;
+  }
+  
+  .combo-label {
+    font-size: 10px;
+  }
+  
+  .combo-value {
+    font-size: 16px;
+  }
+  
+  .player-action-menu {
+    bottom: 8px;
+    gap: 6px;
+    padding: 10px 8px;
+  }
+  
+  .action-btn {
+    min-width: 50px;
+    padding: 8px 6px;
+    gap: 2px;
+    flex: 0 1 calc(20% - 6px);
+  }
+  
+  .btn-icon {
+    font-size: 18px;
+  }
+  
+  .btn-text {
+    font-size: 8px;
+    letter-spacing: 0.2px;
+  }
+  
+  .turn-indicator-new {
+    padding: 0 15px;
+  }
+  
+  .turn-text-new {
+    font-size: 32px;
+    letter-spacing: 3px;
+    padding: 12px 24px;
+  }
+  
+  .damage-number {
+    font-size: 28px;
+  }
+  
+  .damage-number.critical {
+    font-size: 36px;
+  }
+  
+  .damage-number.heal {
+    font-size: 24px;
+  }
+  
+  .damage-number.dodge {
+    font-size: 22px;
+  }
+  
+  .ui-frame-corners .corner-tl,
+  .ui-frame-corners .corner-tr,
+  .ui-frame-corners .corner-bl,
+  .ui-frame-corners .corner-br {
+    width: 40px;
+    height: 40px;
+    border-width: 2px;
+  }
+  
+  .corner-tl,
+  .corner-tr {
+    top: 8px;
+  }
+  
+  .corner-bl,
+  .corner-br {
+    bottom: 8px;
+  }
+  
+  .corner-tl,
+  .corner-bl {
+    left: 8px;
+  }
+  
+  .corner-tr,
+  .corner-br {
+    right: 8px;
+  }
+}
+
+/* Very small screens (phones < 375px) */
+@media (max-width: 375px) {
+  .top-info-banner {
+    top: 5px;
+    width: 92%;
+    padding: 6px 10px;
+    font-size: 11px;
+  }
+  
+  .player-display,
+  .enemy-display {
+    bottom: 110px;
+  }
+  
+  .player-character-art,
+  .enemy-character-art {
+    width: 70px;
+    height: 70px;
+  }
+  
+  .character-icon {
+    font-size: 32px;
+  }
+  
+  .character-label {
+    font-size: 8px;
+  }
+  
+  .player-stats-overlay,
+  .enemy-stats-overlay {
+    width: 120px;
+    padding: 6px 8px;
+    gap: 4px;
+  }
+  
+  .stat-bar-frame {
+    height: 16px;
+  }
+  
+  .stat-label {
+    font-size: 9px;
+    min-width: 20px;
+  }
+  
+  .stat-bar-value {
+    font-size: 9px;
+  }
+  
+  .enemy-name-level {
+    font-size: 10px;
+  }
+  
+  .combo-meter {
+    bottom: 95px;
+    padding: 4px 10px;
+  }
+  
+  .combo-label {
+    font-size: 9px;
+  }
+  
+  .combo-value {
+    font-size: 14px;
+  }
+  
+  .player-action-menu {
+    bottom: 5px;
+    gap: 5px;
+    padding: 8px 6px;
+  }
+  
+  .action-btn {
+    min-width: 45px;
+    padding: 7px 5px;
+    gap: 1px;
+  }
+  
+  .btn-icon {
+    font-size: 16px;
+  }
+  
+  .btn-text {
+    font-size: 7px;
+  }
+  
+  .turn-text-new {
+    font-size: 28px;
+    letter-spacing: 2px;
+    padding: 10px 20px;
+  }
+  
+  .damage-number {
+    font-size: 24px;
+  }
+  
+  .damage-number.critical {
+    font-size: 32px;
+  }
+}
+
+/* Landscape mobile orientation */
+@media (max-width: 768px) and (orientation: landscape) {
+  .player-display,
+  .enemy-display {
+    bottom: 100px;
+  }
+  
+  .player-character-art,
+  .enemy-character-art {
+    width: 90px;
+    height: 90px;
+  }
+  
+  .character-icon {
+    font-size: 42px;
+  }
+  
+  .player-stats-overlay,
+  .enemy-stats-overlay {
+    width: 150px;
+    padding: 8px 10px;
+  }
+  
+  .combo-meter {
+    bottom: 90px;
+    padding: 5px 12px;
+  }
+  
+  .player-action-menu {
+    bottom: 8px;
+    padding: 10px 15px;
+    gap: 10px;
+  }
+  
+  .action-btn {
+    min-width: 65px;
+    padding: 10px 10px;
+  }
+  
+  .turn-text-new {
+    font-size: 36px;
+    padding: 15px 30px;
   }
 }
 
@@ -1327,13 +1722,42 @@
   align-self: center;
 }
 
+/* Mobile adjustments for underbars */
 @media (max-width: 768px) {
   .player-display .underbar,
   .enemy-display .underbar {
-    width: 120px;
-    height: 12px;
+    width: 100px;
+    height: 10px;
+    margin-top: 6px;
   }
-  .underbar-text { font-size: 10px; }
+  .underbar-text { 
+    font-size: 9px;
+  }
+}
+
+@media (max-width: 480px) {
+  .player-display .underbar,
+  .enemy-display .underbar {
+    width: 80px;
+    height: 9px;
+    margin-top: 5px;
+    border-width: 1px;
+  }
+  .underbar-text { 
+    font-size: 8px;
+  }
+}
+
+@media (max-width: 375px) {
+  .player-display .underbar,
+  .enemy-display .underbar {
+    width: 70px;
+    height: 8px;
+    margin-top: 4px;
+  }
+  .underbar-text { 
+    font-size: 7px;
+  }
 }
 
 /* ==========================================
