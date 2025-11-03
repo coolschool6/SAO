@@ -313,12 +313,23 @@ class Game {
       if(modal){ modal.querySelector('.modal-backdrop').addEventListener('click', ()=> this.hideModal()); }
       // quick heal button
       const qh = document.getElementById('quick-heal'); if(qh) qh.addEventListener('click', ()=> this.quickHeal());
-        // combat action buttons
+        // combat action buttons (old interface)
         document.getElementById('btn-attack').addEventListener('click', ()=> this.attackAction());
         document.getElementById('btn-defend').addEventListener('click', ()=> this.defendAction());
         document.getElementById('btn-flee').addEventListener('click', ()=> this.fleeAction());
         document.getElementById('btn-skill-combat').addEventListener('click', ()=> this.showCombatSkillMenu());
         document.getElementById('btn-use-item').addEventListener('click', ()=> this.showCombatItemMenu());
+        // battle screen action buttons (new interface)
+        const attackBtn = document.getElementById('attack-btn');
+        if(attackBtn) attackBtn.addEventListener('click', ()=> this.attackAction());
+        const skillsBtn = document.getElementById('skills-btn');
+        if(skillsBtn) skillsBtn.addEventListener('click', ()=> this.showCombatSkillMenu());
+        const itemsBtn = document.getElementById('items-btn');
+        if(itemsBtn) itemsBtn.addEventListener('click', ()=> this.showCombatItemMenu());
+        const defendBtn = document.getElementById('defend-btn');
+        if(defendBtn) defendBtn.addEventListener('click', ()=> this.defendAction());
+        const runBtn = document.getElementById('run-btn');
+        if(runBtn) runBtn.addEventListener('click', ()=> this.fleeAction());
         // town action buttons (persistent panel)
         const tb = document.getElementById('btn-blacksmith'); if(tb) tb.addEventListener('click', ()=> this.showBlacksmithModal());
         const tm = document.getElementById('btn-market'); if(tm) tm.addEventListener('click', ()=> this.showMarketModal());
@@ -354,7 +365,10 @@ class Game {
         this.logEvent('info', `Used ${k.name} to enter the Boss Arena (Floor ${floor}).`);
         // spawn the arena boss
         const boss = makeEnemy(floor,'boss'); boss.arena = true; boss.floor = floor; boss.isBoss = true; boss.inDungeon = false;
-        this.hideModal(); this.fight(boss);
+        this.hideModal(); 
+        this.busy = false; // Reset busy flag before entering combat
+        this.setButtonsDisabled(false);
+        this.fight(boss);
       }));
     }
 
@@ -1707,13 +1721,18 @@ class Game {
               this.modifyReputation('fae', -1, 'Parley failed');
               const enemy = makeEnemy(floor, context==='dungeon' ? 'dungeon' : 'field');
               enemy.floor = floor; enemy.rareDropBoost = true;
-              this.hideModal(); this.logEvent('info','Parley fails. They attack!'); this.fight(enemy);
+              this.hideModal(); 
+              this.busy = false; // Reset busy flag before entering combat
+              this.logEvent('info','Parley fails. They attack!'); 
+              this.fight(enemy);
             }
           }},
           {text:'Fight', action:()=>{
             const enemy = makeEnemy(floor, context==='dungeon' ? 'dungeon' : 'field');
             enemy.floor = floor; enemy.rareDropBoost = true;
-            this.hideModal(); this.fight(enemy);
+            this.hideModal(); 
+            this.busy = false; // Reset busy flag before entering combat
+            this.fight(enemy);
           }}
         ]);
         return true;
@@ -2774,7 +2793,10 @@ class Game {
       
       popup.querySelector('.achievement-name').textContent = ach.name;
       popup.querySelector('.achievement-desc').textContent = ach.desc;
-      popup.querySelector('.achievement-reward').textContent = `+${ach.reward} Gold`;
+      const rewardEl = popup.querySelector('.achievement-reward');
+      if(rewardEl){
+        rewardEl.textContent = ach.reward ? `+${ach.reward} Gold` : (ach.icon || '🎉');
+      }
       
       popup.classList.add('show');
       
