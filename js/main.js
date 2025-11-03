@@ -2,7 +2,7 @@
 (() => {
   // Note: MAX_FLOORS, SAVE_KEY, FLOOR_DEFS, SKILLS already defined in config.js
   
-  const SAVE_VERSION = 2; // Increment when save schema changes
+  const SAVE_VERSION = 3; // Increment when save schema changes - v3: Added dungeon progress, unlockedNPCs migration
 
   // Utility functions
   function rand(min, max){ return Math.floor(Math.random()*(max-min+1))+min }
@@ -164,6 +164,9 @@
     try{
       const migrated = Object.assign({}, data || {});
       const v = Number.isFinite(migrated.version) ? migrated.version : 0;
+      
+      console.log(`[Migration] Save version: ${v} -> ${SAVE_VERSION}`);
+      
       // Ensure nested objects/arrays exist
       migrated.player = migrated.player || {};
       migrated.inventory = migrated.inventory || {items:[]};
@@ -178,16 +181,42 @@
       migrated.tokens = typeof migrated.tokens === 'number' ? migrated.tokens : (migrated.player.tokens || 0);
       migrated.inTown = !!migrated.inTown;
       migrated.autoExplore = !!migrated.autoExplore;
+      
       // Add currentFloor fallback
       if(typeof migrated.currentFloor !== 'number'){
         migrated.currentFloor = (migrated.player && typeof migrated.player.floor === 'number') ? migrated.player.floor : 1;
       }
-      // Future migrations by version number can be handled here
-  // Ensure reputation exists
-  if(!migrated.player.reputation){ migrated.player.reputation = { faune: 0, fae: 0, merchants: 0 }; }
-  migrated.version = SAVE_VERSION;
+      
+      // Version-specific migrations
+      if(v < 3){
+        console.log('[Migration] Upgrading to v3: Adding dungeon progress tracking and NPC unlock system');
+        // Ensure unlockedNPCs exists - give legacy players the first 3 NPCs
+        if(!migrated.player.unlockedNPCs || !Array.isArray(migrated.player.unlockedNPCs)){
+          migrated.player.unlockedNPCs = ['npc_argo', 'npc_agil', 'npc_lind'];
+          console.log('[Migration] Granted legacy NPCs: Argo, Agil, Lind');
+        }
+        // Initialize progress tracking if missing
+        if(!migrated.fieldProgress || typeof migrated.fieldProgress !== 'object'){
+          migrated.fieldProgress = {};
+        }
+        if(!migrated.dungeonProgress || typeof migrated.dungeonProgress !== 'object'){
+          migrated.dungeonProgress = {};
+        }
+        if(!Array.isArray(migrated.clearedBosses)){
+          migrated.clearedBosses = [];
+        }
+      }
+      
+      // Ensure reputation exists
+      if(!migrated.player.reputation){ 
+        migrated.player.reputation = { faune: 0, fae: 0, merchants: 0 }; 
+      }
+      
+      migrated.version = SAVE_VERSION;
+      console.log('[Migration] Save data migrated successfully');
       return migrated;
     }catch(e){
+      console.error('[Migration] Error during migration:', e);
       // If anything goes wrong, fall back to a fresh scaffold
       return {version:SAVE_VERSION, player:new Player().toJSON(), inventory:{items:[]}, quests:[], completedQuests:[], stash:[], skillCooldowns:{}, statusEffects:[], fieldProgress:{}, dungeonProgress:{}, clearedBosses:[], tokens:0, inTown:false, autoExplore:false, currentFloor:1};
     }
@@ -3029,6 +3058,11 @@ class Game {
         let data;
         try{ data = JSON.parse(raw); }
         catch(parseErr){ this.log('Corrupt save detected. Attempting recovery...'); data = {}; }
+        
+        // Check if migration is needed
+        const oldVersion = data.version || 0;
+        const needsMigration = oldVersion < SAVE_VERSION;
+        
         // Migrate older save formats / ensure defaults
         data = migrateSaveData(data);
         this.player = new Player();
@@ -3056,7 +3090,15 @@ class Game {
         if (typeof data.currentFloor === 'number') {
           this.player.floor = data.currentFloor;
         }
-        this.log('Save loaded.');
+        
+        // Notify player if save was migrated
+        if(needsMigration){
+          this.log(`💾 Save upgraded from v${oldVersion} to v${SAVE_VERSION}`);
+          this.log('✨ New features unlocked: Dungeon progress tracking, NPC progression system!');
+        } else {
+          this.log('Save loaded.');
+        }
+        
         this.updateUI();
       } catch (e) {
         this.log('Load failed: ' + e.message);

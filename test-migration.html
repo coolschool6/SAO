@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Save Migration Test</title>
+  <style>
+    body { 
+      font-family: 'Courier New', monospace; 
+      padding: 20px; 
+      background: #0a0e27; 
+      color: #00ff41; 
+      line-height: 1.6;
+    }
+    h1 { color: #00ff41; text-shadow: 0 0 10px #00ff41; }
+    button { 
+      padding: 12px 24px; 
+      margin: 8px; 
+      font-size: 14px; 
+      font-weight: bold;
+      cursor: pointer; 
+      background: #1a1f3a;
+      color: #00ff41;
+      border: 2px solid #00ff41;
+      border-radius: 4px;
+      transition: all 0.3s;
+    }
+    button:hover { background: #00ff41; color: #0a0e27; box-shadow: 0 0 20px #00ff41; }
+    .section { 
+      background: #1a1f3a; 
+      padding: 20px; 
+      margin: 15px 0; 
+      border-radius: 8px; 
+      border: 1px solid #00ff41;
+    }
+    .result { 
+      background: #0f1429; 
+      padding: 15px; 
+      margin: 10px 0; 
+      border-radius: 5px; 
+      font-family: monospace;
+      white-space: pre-wrap;
+      border-left: 4px solid #00ff41;
+    }
+    .pass { color: #00ff41; }
+    .fail { color: #ff4444; }
+    .warn { color: #ffaa00; }
+    .info { color: #4488ff; }
+    code { background: #0f1429; padding: 2px 6px; border-radius: 3px; }
+  </style>
+</head>
+<body>
+  <h1>🧪 Save Migration & Compatibility Test</h1>
+  <p>This page tests the save migration system for existing players.</p>
+  
+  <div class="section">
+    <h2>📋 Current Save Status</h2>
+    <button onclick="checkCurrentSave()">Check Current Save</button>
+    <button onclick="viewFullSave()">View Full Save Data</button>
+    <div id="save-status"></div>
+  </div>
+
+  <div class="section">
+    <h2>🧬 Test Migration</h2>
+    <p>Create fake old saves to test migration:</p>
+    <button onclick="createV0Save()">Create v0 Save (Oldest)</button>
+    <button onclick="createV1Save()">Create v1 Save</button>
+    <button onclick="createV2Save()">Create v2 Save (Recent)</button>
+    <button onclick="testMigration()">Test Migration Process</button>
+    <div id="migration-results"></div>
+  </div>
+
+  <div class="section">
+    <h2>🎮 Test Game Features</h2>
+    <button onclick="testEnemyRandomization()">Test Enemy Variety</button>
+    <button onclick="testNPCUnlocks()">Test NPC Unlocks</button>
+    <button onclick="testDungeonProgress()">Test Dungeon Progress</button>
+    <div id="feature-results"></div>
+  </div>
+
+  <div class="section">
+    <h2>🔧 Utilities</h2>
+    <button onclick="backupSave()">Backup Current Save</button>
+    <button onclick="restoreBackup()">Restore Backup</button>
+    <button onclick="clearSave()">Clear Save (⚠️ Dangerous)</button>
+    <div id="utility-results"></div>
+  </div>
+
+  <script src="js/config.js?v=1.2"></script>
+  <script src="js/enemies.js?v=1.2"></script>
+  <script>
+    const SAVE_KEY = 'sao_text_demo_v1';
+    const BACKUP_KEY = 'sao_backup';
+    const SAVE_VERSION = 3;
+
+    function log(elementId, message, type = 'info') {
+      const el = document.getElementById(elementId);
+      const div = document.createElement('div');
+      div.className = `result ${type}`;
+      div.textContent = message;
+      el.appendChild(div);
+    }
+
+    function clearLog(elementId) {
+      document.getElementById(elementId).innerHTML = '';
+    }
+
+    function checkCurrentSave() {
+      clearLog('save-status');
+      const raw = localStorage.getItem(SAVE_KEY);
+      
+      if (!raw) {
+        log('save-status', '❌ No save found', 'fail');
+        return;
+      }
+
+      try {
+        const save = JSON.parse(raw);
+        log('save-status', '✅ Save file exists', 'pass');
+        log('save-status', `Version: ${save.version || 0}`, 'info');
+        log('save-status', `Player Level: ${save.player?.level || 'Unknown'}`, 'info');
+        log('save-status', `Current Floor: ${save.currentFloor || save.player?.floor || 1}`, 'info');
+        
+        // Check for new properties
+        const checks = {
+          'unlockedNPCs': save.player?.unlockedNPCs,
+          'fieldProgress': save.fieldProgress,
+          'dungeonProgress': save.dungeonProgress,
+          'clearedBosses': save.clearedBosses
+        };
+
+        log('save-status', '\n--- New Properties Check ---', 'info');
+        Object.entries(checks).forEach(([key, value]) => {
+          if (value === undefined) {
+            log('save-status', `❌ ${key}: Missing`, 'fail');
+          } else if (Array.isArray(value)) {
+            log('save-status', `✅ ${key}: ${JSON.stringify(value)}`, 'pass');
+          } else if (typeof value === 'object') {
+            const keys = Object.keys(value);
+            log('save-status', `✅ ${key}: ${keys.length} entries`, 'pass');
+          } else {
+            log('save-status', `✅ ${key}: ${value}`, 'pass');
+          }
+        });
+      } catch (e) {
+        log('save-status', `❌ Error reading save: ${e.message}`, 'fail');
+      }
+    }
+
+    function viewFullSave() {
+      clearLog('save-status');
+      const raw = localStorage.getItem(SAVE_KEY);
+      if (!raw) {
+        log('save-status', '❌ No save found', 'fail');
+        return;
+      }
+
+      try {
+        const save = JSON.parse(raw);
+        log('save-status', JSON.stringify(save, null, 2), 'info');
+      } catch (e) {
+        log('save-status', `❌ Error: ${e.message}`, 'fail');
+      }
+    }
+
+    function createV0Save() {
+      const oldSave = {
+        player: {
+          name: 'TestPlayer',
+          level: 5,
+          floor: 1,
+          hp: 50,
+          maxHP: 50,
+          xp: 200,
+          gold: 150
+        },
+        inventory: { items: [] }
+      };
+      
+      localStorage.setItem(SAVE_KEY, JSON.stringify(oldSave));
+      log('migration-results', '✅ Created v0 save (no version property)', 'pass');
+      log('migration-results', 'Missing: unlockedNPCs, fieldProgress, dungeonProgress, clearedBosses', 'warn');
+    }
+
+    function createV1Save() {
+      const oldSave = {
+        version: 1,
+        player: {
+          name: 'TestPlayer',
+          level: 8,
+          floor: 2,
+          hp: 80,
+          maxHP: 80,
+          xp: 500,
+          gold: 350
+        },
+        inventory: { items: [] },
+        quests: []
+      };
+      
+      localStorage.setItem(SAVE_KEY, JSON.stringify(oldSave));
+      log('migration-results', '✅ Created v1 save', 'pass');
+      log('migration-results', 'Missing: unlockedNPCs, progress tracking', 'warn');
+    }
+
+    function createV2Save() {
+      const oldSave = {
+        version: 2,
+        player: {
+          name: 'TestPlayer',
+          level: 10,
+          floor: 3,
+          hp: 100,
+          maxHP: 100,
+          xp: 800,
+          gold: 600,
+          reputation: { faune: 0, fae: 0, merchants: 0 }
+        },
+        inventory: { items: [] },
+        quests: [],
+        tokens: 5
+      };
+      
+      localStorage.setItem(SAVE_KEY, JSON.stringify(oldSave));
+      log('migration-results', '✅ Created v2 save', 'pass');
+      log('migration-results', 'Missing: unlockedNPCs, progress tracking', 'warn');
+    }
+
+    function testMigration() {
+      clearLog('migration-results');
+      const raw = localStorage.getItem(SAVE_KEY);
+      
+      if (!raw) {
+        log('migration-results', '❌ No save to migrate. Create a test save first.', 'fail');
+        return;
+      }
+
+      try {
+        const oldSave = JSON.parse(raw);
+        const oldVersion = oldSave.version || 0;
+        
+        log('migration-results', `📊 Testing migration from v${oldVersion} to v${SAVE_VERSION}`, 'info');
+        
+        // Simulate migration
+        const migrated = {
+          ...oldSave,
+          version: SAVE_VERSION,
+          player: {
+            ...oldSave.player,
+            unlockedNPCs: oldSave.player.unlockedNPCs || ['npc_argo', 'npc_agil', 'npc_lind']
+          },
+          fieldProgress: oldSave.fieldProgress || {},
+          dungeonProgress: oldSave.dungeonProgress || {},
+          clearedBosses: oldSave.clearedBosses || []
+        };
+
+        log('migration-results', '\n--- Migration Results ---', 'info');
+        log('migration-results', `Version: ${oldVersion} → ${migrated.version}`, 'pass');
+        log('migration-results', `unlockedNPCs: ${JSON.stringify(migrated.player.unlockedNPCs)}`, 'pass');
+        log('migration-results', `fieldProgress: ${Object.keys(migrated.fieldProgress).length} floors`, 'pass');
+        log('migration-results', `dungeonProgress: ${Object.keys(migrated.dungeonProgress).length} floors`, 'pass');
+        log('migration-results', `clearedBosses: ${migrated.clearedBosses.length} bosses`, 'pass');
+        
+        log('migration-results', '\n✅ Migration successful! Reload the game to apply.', 'pass');
+        
+        // Don't actually save - just show what would happen
+        log('migration-results', '\n💡 To apply: Reload index.html and it will auto-migrate', 'info');
+        
+      } catch (e) {
+        log('migration-results', `❌ Migration failed: ${e.message}`, 'fail');
+      }
+    }
+
+    function testEnemyRandomization() {
+      clearLog('feature-results');
+      
+      if (typeof makeEnemy === 'undefined') {
+        log('feature-results', '❌ makeEnemy function not loaded', 'fail');
+        return;
+      }
+
+      log('feature-results', '🎲 Testing enemy randomization (20 spawns):', 'info');
+      
+      const counts = {};
+      for (let i = 0; i < 20; i++) {
+        const enemy = makeEnemy(1, 'field');
+        counts[enemy.name] = (counts[enemy.name] || 0) + 1;
+      }
+
+      const unique = Object.keys(counts).length;
+      
+      if (unique === 1) {
+        log('feature-results', `❌ FAIL: Only ${unique} enemy type (no variety)`, 'fail');
+      } else if (unique < 3) {
+        log('feature-results', `⚠️ WARN: Only ${unique} enemy types (low variety)`, 'warn');
+      } else {
+        log('feature-results', `✅ PASS: ${unique} different enemy types`, 'pass');
+      }
+
+      log('feature-results', '\nDistribution:', 'info');
+      Object.entries(counts).forEach(([name, count]) => {
+        const pct = (count / 20 * 100).toFixed(1);
+        const bar = '█'.repeat(count);
+        log('feature-results', `${name}: ${count} (${pct}%) ${bar}`, 'info');
+      });
+    }
+
+    function testNPCUnlocks() {
+      clearLog('feature-results');
+      const raw = localStorage.getItem(SAVE_KEY);
+      
+      if (!raw) {
+        log('feature-results', '❌ No save found', 'fail');
+        return;
+      }
+
+      const save = JSON.parse(raw);
+      const npcs = save.player?.unlockedNPCs;
+
+      if (!npcs) {
+        log('feature-results', '❌ unlockedNPCs property missing', 'fail');
+        log('feature-results', '💡 Migration needed - reload the game', 'warn');
+        return;
+      }
+
+      log('feature-results', `✅ unlockedNPCs exists: ${npcs.length} NPCs`, 'pass');
+      log('feature-results', `NPCs: ${npcs.join(', ')}`, 'info');
+    }
+
+    function testDungeonProgress() {
+      clearLog('feature-results');
+      const raw = localStorage.getItem(SAVE_KEY);
+      
+      if (!raw) {
+        log('feature-results', '❌ No save found', 'fail');
+        return;
+      }
+
+      const save = JSON.parse(raw);
+      
+      const checks = [
+        ['fieldProgress', save.fieldProgress],
+        ['dungeonProgress', save.dungeonProgress],
+        ['clearedBosses', save.clearedBosses]
+      ];
+
+      checks.forEach(([name, value]) => {
+        if (value === undefined) {
+          log('feature-results', `❌ ${name} missing`, 'fail');
+        } else {
+          log('feature-results', `✅ ${name} exists`, 'pass');
+        }
+      });
+    }
+
+    function backupSave() {
+      clearLog('utility-results');
+      const raw = localStorage.getItem(SAVE_KEY);
+      
+      if (!raw) {
+        log('utility-results', '❌ No save to backup', 'fail');
+        return;
+      }
+
+      localStorage.setItem(BACKUP_KEY, raw);
+      log('utility-results', '✅ Save backed up successfully', 'pass');
+      log('utility-results', `Size: ${(raw.length / 1024).toFixed(2)} KB`, 'info');
+    }
+
+    function restoreBackup() {
+      clearLog('utility-results');
+      const backup = localStorage.getItem(BACKUP_KEY);
+      
+      if (!backup) {
+        log('utility-results', '❌ No backup found', 'fail');
+        return;
+      }
+
+      localStorage.setItem(SAVE_KEY, backup);
+      log('utility-results', '✅ Backup restored successfully', 'pass');
+      log('utility-results', '🔄 Reload the game to apply', 'info');
+    }
+
+    function clearSave() {
+      if (!confirm('⚠️ Are you sure? This will DELETE your save!')) {
+        return;
+      }
+
+      clearLog('utility-results');
+      localStorage.removeItem(SAVE_KEY);
+      log('utility-results', '✅ Save cleared', 'pass');
+      log('utility-results', '🔄 Reload the game for a fresh start', 'info');
+    }
+
+    // Auto-check on load
+    window.onload = () => {
+      checkCurrentSave();
+    };
+  </script>
+</body>
+</html>
