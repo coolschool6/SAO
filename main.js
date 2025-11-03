@@ -304,6 +304,9 @@ class Game {
       document.getElementById('btn-rest').addEventListener('click', ()=>this.rest());
       document.getElementById('btn-save').addEventListener('click', ()=>this.save());
       document.getElementById('btn-load').addEventListener('click', ()=>this.load());
+      // HUD save button (mobile-friendly)
+      const hudSaveBtn = document.getElementById('hud-save-btn');
+      if(hudSaveBtn) hudSaveBtn.addEventListener('click', ()=>this.save());
       document.getElementById('auto-explore').addEventListener('change',(e)=>this.toggleAuto(e.target.checked));
       // modal close on backdrop click
       const modal = document.getElementById('modal');
@@ -3192,19 +3195,18 @@ class Game {
     checkNewPlayer(){
       const hasSave = localStorage.getItem(SAVE_KEY);
       console.log('[New Player Check] Has save:', !!hasSave);
-      console.log('[New Player Check] Player name:', this.player.name);
-      console.log('[New Player Check] Player archetype:', this.player.archetype);
       
-      // Show welcome screen if: no save OR player hasn't completed character creation
-      if(!hasSave || this.player.name === 'Player' && !this.player.archetype){
-        // New player or incomplete character creation
-        this.updateUI();
-        setTimeout(()=> this.showWelcomeModal(), 800);
-      } else {
-        // Returning player with completed character
-        this.updateUI();
-        this.log('Welcome back! Your adventure continues.');
+      // If save exists, auto-load it
+      if(hasSave){
+        console.log('[Auto-load] Loading saved game...');
+        this.load(); // Auto-load the save
+        return; // Exit early - load() calls updateUI()
       }
+      
+      // No save - show welcome for new players
+      console.log('[New Player Check] No save found - showing welcome');
+      this.updateUI();
+      setTimeout(()=> this.showWelcomeModal(), 800);
     }
 
     showWelcomeModal() {
