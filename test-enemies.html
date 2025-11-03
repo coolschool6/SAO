@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Enemy Randomization Test</title>
+  <style>
+    body { font-family: Arial, sans-serif; padding: 20px; background: #1a1a2e; color: #eee; }
+    button { padding: 10px 20px; font-size: 16px; margin: 10px 0; cursor: pointer; }
+    .result { background: #16213e; padding: 15px; margin: 10px 0; border-radius: 5px; }
+    .enemy { margin: 5px 0; padding: 5px; background: #0f3460; border-left: 3px solid #e94560; }
+  </style>
+</head>
+<body>
+  <h1>🧪 Enemy Randomization Test</h1>
+  <p>This test generates 20 enemies to verify randomization is working properly.</p>
+  
+  <button onclick="testEnemies('field')">Test Field Enemies (Floor 1)</button>
+  <button onclick="testEnemies('dungeon')">Test Dungeon Enemies (Floor 1)</button>
+  <button onclick="testBoss()">Test Boss (Floor 1)</button>
+  <button onclick="clearResults()">Clear Results</button>
+  
+  <div id="results"></div>
+
+  <script src="js/config.js"></script>
+  <script src="js/enemies.js"></script>
+  <script>
+    function testEnemies(type) {
+      const results = document.getElementById('results');
+      const resultDiv = document.createElement('div');
+      resultDiv.className = 'result';
+      resultDiv.innerHTML = `<h3>Testing ${type} enemies on Floor 1 (20 spawns):</h3>`;
+      
+      const counts = {};
+      
+      for(let i = 0; i < 20; i++) {
+        const enemy = makeEnemy(1, type);
+        counts[enemy.name] = (counts[enemy.name] || 0) + 1;
+        
+        const enemyDiv = document.createElement('div');
+        enemyDiv.className = 'enemy';
+        enemyDiv.textContent = `${i+1}. ${enemy.name} - HP: ${enemy.hp}, ATK: ${enemy.atk}, DEF: ${enemy.def}`;
+        resultDiv.appendChild(enemyDiv);
+      }
+      
+      // Summary
+      const summary = document.createElement('div');
+      summary.style.marginTop = '10px';
+      summary.style.padding = '10px';
+      summary.style.background = '#e94560';
+      summary.style.color = '#fff';
+      summary.innerHTML = '<strong>Distribution:</strong><br>' + 
+        Object.entries(counts).map(([name, count]) => 
+          `${name}: ${count} (${(count/20*100).toFixed(1)}%)`
+        ).join('<br>');
+      resultDiv.appendChild(summary);
+      
+      results.insertBefore(resultDiv, results.firstChild);
+    }
+    
+    function testBoss() {
+      const results = document.getElementById('results');
+      const resultDiv = document.createElement('div');
+      resultDiv.className = 'result';
+      resultDiv.innerHTML = `<h3>Testing Boss (Floor 1):</h3>`;
+      
+      const boss = makeEnemy(1, 'boss');
+      const bossDiv = document.createElement('div');
+      bossDiv.className = 'enemy';
+      bossDiv.textContent = `${boss.name} - HP: ${boss.hp}, ATK: ${boss.atk}, DEF: ${boss.def}, isBoss: ${boss.isBoss}`;
+      resultDiv.appendChild(bossDiv);
+      
+      results.insertBefore(resultDiv, results.firstChild);
+    }
+    
+    function clearResults() {
+      document.getElementById('results').innerHTML = '';
+    }
+    
+    // Run automatic test on load
+    window.onload = () => {
+      console.log('Testing enemy generation...');
+      console.log('FLOOR_DEFS exists:', typeof FLOOR_DEFS !== 'undefined');
+      console.log('FLOOR_DEFS[1]:', FLOOR_DEFS[1]);
+      console.log('makeEnemy exists:', typeof makeEnemy === 'function');
+      testEnemies('field');
+    };
+  </script>
+</body>
+</html>

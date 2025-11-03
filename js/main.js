@@ -240,7 +240,10 @@ class Game {
         questProgressBars: document.getElementById('quest-progress-bars'),
         repFaune: document.getElementById('rep-faune'),
         repFae: document.getElementById('rep-fae'),
-        repMerchants: document.getElementById('rep-merchants')
+        repMerchants: document.getElementById('rep-merchants'),
+        dungeonProgressDisplay: document.getElementById('dungeon-progress-display'),
+        dungeonProgress: document.getElementById('dungeon-progress'),
+        dungeonRooms: document.getElementById('dungeon-rooms')
       };
       
       this.logEl = document.getElementById('log-entries');
@@ -905,6 +908,24 @@ class Game {
       if(c.questCount) c.questCount.textContent = p.quests.length;
       if(c.playerPoints) c.playerPoints.textContent = p.pendingStatPoints || 0;
       if(c.playerSkillpoints) c.playerSkillpoints.textContent = p.skillPoints || 0;
+      
+      // Update dungeon progress counter
+      const floor = p.floor;
+      const def = FLOOR_DEFS[floor];
+      const dungeonRooms = def ? def.dungeonRooms : 3;
+      const currentProgress = p.dungeonProgress[floor] || 0;
+      const bossCleared = p.clearedBosses && p.clearedBosses.includes(floor);
+      
+      if(c.dungeonProgressDisplay && c.dungeonProgress && c.dungeonRooms){
+        // Show progress if player has entered dungeon at least once and boss not cleared
+        if(currentProgress > 0 && !bossCleared){
+          c.dungeonProgressDisplay.style.display = 'block';
+          c.dungeonProgress.textContent = currentProgress;
+          c.dungeonRooms.textContent = dungeonRooms;
+        } else {
+          c.dungeonProgressDisplay.style.display = 'none';
+        }
+      }
       
       // Show/hide Allocate SP button based on available skill points
       if(c.btnAllocateSkills){
