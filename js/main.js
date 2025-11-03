@@ -1185,6 +1185,64 @@ class Game {
       }
     }
     
+    // Update enemy visual appearance (icon and name in placeholder)
+    updateEnemyAppearance(enemy){
+      if(!enemy) return;
+      
+      // Update placeholder icon and name
+      const placeholderIcon = document.querySelector('.enemy-placeholder .character-icon');
+      const placeholderLabel = document.querySelector('.enemy-placeholder .enemy-label');
+      
+      if(placeholderIcon){
+        placeholderIcon.textContent = this.getEnemyIcon(enemy.name);
+      }
+      
+      if(placeholderLabel){
+        placeholderLabel.textContent = enemy.name.toUpperCase();
+      }
+      
+      // Try to load enemy image (will fall back to placeholder if not found)
+      const enemyImg = document.getElementById('enemy-char-img');
+      if(enemyImg){
+        const enemyFileName = enemy.name.toLowerCase().replace(/\s+/g, '_');
+        enemyImg.src = `assets/enemies/${enemyFileName}.png`;
+      }
+    }
+    
+    // Get emoji icon for enemy based on name
+    getEnemyIcon(enemyName){
+      const name = (enemyName || '').toLowerCase();
+      
+      // Floor 1 enemies
+      if(name.includes('boar') || name.includes('swine')) return '🐗';
+      if(name.includes('nepent') || name.includes('plant')) return '🌿';
+      if(name.includes('wolf') || name.includes('dire')) return '🐺';
+      if(name.includes('kobold')) return '👹';
+      
+      // Floor 2 enemies
+      if(name.includes('wasp') || name.includes('wind')) return '🐝';
+      if(name.includes('scarab') || name.includes('beetle') || name.includes('pillbug')) return '🪲';
+      if(name.includes('spider')) return '🕷️';
+      if(name.includes('goblin')) return '👺';
+      if(name.includes('bandit') || name.includes('rogue')) return '🗡️';
+      if(name.includes('ox') || name.includes('bull')) return '🐂';
+      
+      // Bosses and special enemies
+      if(name.includes('grath')) return '🐗';
+      if(name.includes('illfang')) return '👹';
+      if(name.includes('dragon') || name.includes('drake')) return '🐉';
+      if(name.includes('golem')) return '🗿';
+      if(name.includes('demon') || name.includes('devil')) return '😈';
+      if(name.includes('skeleton') || name.includes('undead')) return '💀';
+      if(name.includes('slime')) return '💧';
+      if(name.includes('bat')) return '🦇';
+      if(name.includes('rat')) return '🐀';
+      if(name.includes('snake') || name.includes('serpent')) return '🐍';
+      
+      // Generic fallback
+      return '👾';
+    }
+    
     // Update status effect icons for player or enemy
     updateStatusIcons(target, effects){
       const container = document.getElementById(`${target}-status-icons`);
@@ -1797,6 +1855,9 @@ class Game {
       this.currentEnemy.floor = enemy.floor || this.player.floor;
       this.currentEnemy.isBoss = !!enemy.isBoss;
       this.logEvent('info', `Encountered: ${this.currentEnemy.name}`, this.currentEnemy.isBoss ? 'Boss' : 'Enemy');
+      
+      // Update enemy visual appearance
+      this.updateEnemyAppearance(this.currentEnemy);
       
       // Log to combat overlay
       if(this.currentEnemy.isBoss){
