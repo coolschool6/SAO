@@ -193,37 +193,6 @@
     }
   }
 
-  // Enemy factory
-  function makeEnemy(floor, type='normal'){
-    const def = FLOOR_DEFS[floor] || FLOOR_DEFS[1];
-    let enemy;
-    if(type === 'boss'){
-      const b = def.boss;
-      // Increase boss HP scaling for difficulty
-      enemy = {
-        name: b.name, hp: Math.floor(b.hpMul * 12), maxHP: Math.floor(b.hpMul * 12),
-        atk: b.atk, def: b.def, exp: b.exp, gold: b.gold, isBoss: true, id: b.id
-      };
-    } else {
-      const list = def.enemies || [];
-      const e = list[rand(0, list.length-1)] || {name:'Monster',hpMul:1,atkMul:1,exp:10,gold:5};
-      const hpBase = 8 + floor * 2;
-      const atkBase = 2 + Math.floor(floor * 0.5);
-      enemy = {
-        name: e.name, hp: Math.floor(e.hpMul * hpBase), maxHP: Math.floor(e.hpMul * hpBase),
-        atk: Math.floor(e.atkMul * atkBase), def: Math.floor(floor * 0.3), dex: 1 + Math.floor(floor * 0.4), exp: e.exp, gold: e.gold
-      };
-    }
-    // apply status effects based on enemy name
-    const nm = (enemy.name||'').toLowerCase();
-    if(nm.includes('slime')) enemy.statusOnHit = {type:'slow',chance:0.25,turns:2};
-    if(nm.includes('leech') || nm.includes('bog') || nm.includes('poison')) enemy.statusOnHit = {type:'poison',chance:0.2,turns:3,value:2};
-    if(nm.includes('ent') || nm.includes('golem')) enemy.statusOnHit = {type:'regen',chance:0.12,turns:3,value:6};
-    if(nm.includes('frenzy boar')) enemy.statusOnHit = {type:'stun',chance:0.2,turns:1};
-    if(nm.includes('little nepent')) enemy.statusOnHit = {type:'poison',chance:0.25,turns:3,value:2};
-    return enemy;
-  }
-
 // Game engine
 class Game {
     constructor(){
@@ -304,6 +273,7 @@ class Game {
       document.getElementById('btn-rest').addEventListener('click', ()=>this.rest());
       document.getElementById('btn-save').addEventListener('click', ()=>this.save());
       document.getElementById('btn-load').addEventListener('click', ()=>this.load());
+      document.getElementById('btn-new-game').addEventListener('click', ()=>this.startNewGame());
       // HUD save button (mobile-friendly)
       const hudSaveBtn = document.getElementById('hud-save-btn');
       if(hudSaveBtn) hudSaveBtn.addEventListener('click', ()=>this.save());
@@ -3070,6 +3040,23 @@ class Game {
       } catch (e) {
         this.log('Load failed: ' + e.message);
       }
+    }
+
+    startNewGame() {
+      // Confirm before clearing save
+      if(localStorage.getItem(SAVE_KEY)) {
+        const confirmed = confirm('⚠️ Are you sure you want to start a NEW GAME?\n\nThis will DELETE your current save file and cannot be undone!\n\nClick OK to start fresh, or Cancel to keep your current game.');
+        if(!confirmed) return;
+      }
+      
+      // Clear localStorage save
+      localStorage.removeItem(SAVE_KEY);
+      
+      // Show message and reload
+      this.log('💾 Save cleared. Reloading for new game...');
+      setTimeout(() => {
+        location.reload(); // Reload page to restart with fresh player
+      }, 500);
     }
 
     setButtonsDisabled(val){

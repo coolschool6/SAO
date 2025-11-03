@@ -143,6 +143,7 @@
         <button id="btn-rest" class="utility-btn">Rest</button>
         <button id="btn-save" class="utility-btn">Save</button>
         <button id="btn-load" class="utility-btn">Load</button>
+        <button id="btn-new-game" class="utility-btn" title="Start a new game (clears current save)">New Game</button>
         <label class="auto-explore-toggle">
           <input type="checkbox" id="auto-explore" /> Auto
         </label>
@@ -238,8 +239,11 @@
 
     <!-- Player Character Display (Left Side) -->
     <div id="player-display" class="player-display">
-      <!-- Character Art Placeholder -->
+      <!-- Character Art with Image Support -->
       <div id="player-character-art" class="player-character-art">
+        <!-- Actual character image (hidden until loaded) -->
+        <img id="player-char-img" class="character-image" src="assets/player_kirito.png" alt="Player Character" style="display:none;" onerror="this.style.display='none';" onload="this.style.display='block'; this.parentElement.querySelector('.character-placeholder').style.display='none';">
+        <!-- Fallback placeholder (shown if image fails) -->
         <div class="character-placeholder">
           <span class="character-icon">⚔️</span>
           <div class="character-label" id="player-character-label">KIRITO</div>
@@ -276,8 +280,11 @@
 
     <!-- Enemy Character Display (Right Side) -->
     <div id="enemy-display" class="enemy-display">
-      <!-- Enemy Art Placeholder -->
+      <!-- Enemy Art with Image Support -->
       <div id="enemy-character-art" class="enemy-character-art">
+        <!-- Actual enemy image (dynamically set by JS) -->
+        <img id="enemy-char-img" class="character-image" src="" alt="Enemy Character" style="display:none;" onerror="this.style.display='none';" onload="this.style.display='block'; this.parentElement.querySelector('.character-placeholder').style.display='none';">
+        <!-- Fallback placeholder (shown if image fails or not set) -->
         <div class="character-placeholder enemy-placeholder">
           <span class="character-icon">🐗</span>
           <div class="character-label enemy-label">FRENZY BOAR</div>
@@ -373,6 +380,7 @@
   </template>
 
   <script src="js/config.js"></script>
+  <script src="js/enemies.js"></script>
   <script src="js/npcs.js"></script>
   <script src="js/achievements.js"></script>
   <script src="js/inventory.js"></script>
