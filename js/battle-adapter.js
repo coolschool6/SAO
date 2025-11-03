@@ -238,43 +238,5 @@
     document.body.classList.remove('in-battle');
   };
   
-  // Map button event listeners
-  window.addEventListener('DOMContentLoaded', function() {
-    // Map attack button
-    const oldAttack = originalGetElementById('btn-attack');
-    const newAttack = originalGetElementById('attack-btn');
-    if (oldAttack && newAttack && oldAttack.onclick) {
-      newAttack.onclick = oldAttack.onclick;
-    }
-    
-    // Map skill button
-    const oldSkill = originalGetElementById('btn-skill-combat');
-    const newSkill = originalGetElementById('skills-btn');
-    if (oldSkill && newSkill && oldSkill.onclick) {
-      newSkill.onclick = oldSkill.onclick;
-    }
-    
-    // Map item button
-    const oldItem = originalGetElementById('btn-use-item');
-    const newItem = originalGetElementById('items-btn');
-    if (oldItem && newItem && oldItem.onclick) {
-      newItem.onclick = oldItem.onclick;
-    }
-    
-    // Map defend button
-    const oldDefend = originalGetElementById('btn-defend');
-    const newDefend = originalGetElementById('defend-btn');
-    if (oldDefend && newDefend && oldDefend.onclick) {
-      newDefend.onclick = oldDefend.onclick;
-    }
-    
-    // Map flee button
-    const oldFlee = originalGetElementById('btn-flee');
-    const newFlee = originalGetElementById('run-btn');
-    if (oldFlee && newFlee && oldFlee.onclick) {
-      newFlee.onclick = oldFlee.onclick;
-    }
-  });
-  
   console.log('[Battle Screen Adapter] Loaded - Old combat UI IDs mapped to new battle screen');
 })();

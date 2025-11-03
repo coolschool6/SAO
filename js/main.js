@@ -230,7 +230,10 @@ class Game {
       // inventory system (provided by inventory.js)
       this.inventory = new Inventory();
       // starting item for demo
-      this.inventory.addItem({name:'Healing Herb',type:'consumable',heal:20});
+      this.inventory.addItem({name:'Healing Herb',type:'consumable',heal:20,description:'A common herb that restores 20 HP when consumed.'});
+      
+      // Current inventory category filter
+      this.currentInventoryCategory = 'all';
       
       // Performance optimization: Throttled UI update
       this._updateUIImmediate = this.updateUI.bind(this);
@@ -340,6 +343,23 @@ class Game {
         const tStorage = document.getElementById('btn-storage'); if(tStorage) tStorage.addEventListener('click', ()=> this.showStorageModal());
         const tq = document.getElementById('btn-quest-board'); if(tq) tq.addEventListener('click', ()=> this.showQuestBoardModal());
         const tr = document.getElementById('btn-field-return'); if(tr) tr.addEventListener('click', ()=> this.returnToField());
+
+        // Inventory system event listeners
+        const invToggle = document.getElementById('inventory-toggle-button');
+        if(invToggle) invToggle.addEventListener('click', ()=> this.toggleInventoryPanel());
+        const invClose = document.getElementById('inventory-close-btn');
+        if(invClose) invClose.addEventListener('click', ()=> this.closeInventoryPanel());
+        const itemDetailClose = document.getElementById('item-detail-close');
+        if(itemDetailClose) itemDetailClose.addEventListener('click', ()=> this.closeItemDetail());
+
+        // Category tabs
+        const tabs = document.querySelectorAll('.inventory-tab');
+        tabs.forEach(tab => {
+          tab.addEventListener('click', (e)=> {
+            const category = e.target.dataset.category;
+            this.filterAndRenderInventory(category);
+          });
+        });
     }
 
     // Town/hub menu (persistent panel instead of modal)
@@ -683,7 +703,7 @@ class Game {
           // include destination floor in meta (board quest defined for Floor 3)
           pushQ.meta.destinationFloor = 3;
           // give the player the sealed parcel item to carry
-          const parcel = this.inventory.addItem({name:`Sealed Parcel (${raw.title})`, type:'quest', questId:raw.id});
+          const parcel = this.inventory.addItem({name:`Sealed Parcel (${raw.title})`, type:'quest', questId:raw.id, description:`A sealed parcel for the quest "${raw.title}". Deliver this to complete the quest.`});
           this.logEvent('info', `Received quest item: ${parcel.name}`);
           this.showInventoryBadge();
         }
@@ -1451,65 +1471,202 @@ class Game {
       }
     }
 
-    updateInventoryUI(){
-      if(!this.inventoryListEl) return;
-      this.inventoryListEl.innerHTML = '';
-      this.inventory.items.forEach(it=>{
-        const li = document.createElement('li');
-        // name + count
-        const title = document.createElement('div');
-        title.style.display='flex'; title.style.alignItems='center';
-        const nameSpan = document.createElement('div'); nameSpan.textContent = it.name + (it.equipped? ' (equipped)':'');
-        title.appendChild(nameSpan);
-        if(it.count && it.count > 1){ const badge = document.createElement('div'); badge.className='count-badge'; badge.textContent = 'x' + it.count; title.appendChild(badge); }
-        li.appendChild(title);
-        const span = document.createElement('span');
-        span.style.marginLeft = '8px';
-        // Use button for consumables
-        if(it.type === 'consumable'){
-          const useBtn = document.createElement('button');
-          useBtn.textContent = 'Use';
-          useBtn.addEventListener('click', ()=>{
-            const res = this.inventory.useItem(it.id, this.player);
-            if(res.used){ 
-              if(res.heal) this.log(`Used ${it.name}. Restored HP.`); 
-              if(res.cured) this.log(`Used ${it.name}. Cured status effects.`);
-            }
-            else this.log(`Could not use ${it.name}.`);
-            this.updateUI();
-          });
-          span.appendChild(useBtn);
+    // ========== ENHANCED INVENTORY SYSTEM ==========
+
+    toggleInventoryPanel(){
+      const panel = document.getElementById('inventory-panel');
+      if(!panel) return;
+      const isVisible = panel.style.display !== 'none';
+      if(isVisible){
+        this.closeInventoryPanel();
+      } else {
+        panel.style.display = 'block';
+        this.filterAndRenderInventory('all');
+      }
+    }
+
+    closeInventoryPanel(){
+      const panel = document.getElementById('inventory-panel');
+      if(panel) panel.style.display = 'none';
+      this.closeItemDetail();
+    }
+
+    filterAndRenderInventory(category){
+      this.currentInventoryCategory = category;
+      
+      // Update active tab
+      const tabs = document.querySelectorAll('.inventory-tab');
+      tabs.forEach(tab => {
+        if(tab.dataset.category === category){
+          tab.classList.add('active');
+        } else {
+          tab.classList.remove('active');
         }
-        // Equip / Unequip for equipment
-        if(it.type === 'equipment'){
-          const eqBtn = document.createElement('button');
-          eqBtn.textContent = it.equipped ? 'Unequip' : 'Equip';
-          eqBtn.addEventListener('click', ()=>{
-            if(it.equipped){ this.inventory.unequipItem(it.id, this.player); this.log(`Unequipped ${it.name}.`); }
-            else{ this.inventory.equipItem(it.id, this.player); this.log(`Equipped ${it.name}.`); }
-            this.updateUI();
-          });
-          span.appendChild(eqBtn);
-          // Equipment preview on hover
-          li.addEventListener('mouseenter', ()=> this.showEquipPreview(it));
-          li.addEventListener('mouseleave', ()=> this.clearEquipPreview());
-        }
-  // Drop button
-        const dropBtn = document.createElement('button');
-        dropBtn.textContent = 'Drop';
-        dropBtn.style.marginLeft = '6px';
-        dropBtn.addEventListener('click', ()=>{
-          if(it.equipped) this.inventory.unequipItem(it.id, this.player);
-          this.inventory.removeItem(it.id);
-          this.log(`Dropped ${it.name}.`);
-          this.updateUI();
-        });
-        span.appendChild(dropBtn);
-        // mark new item badge briefly when adding items
-        // we will show badge when inventory change occurs elsewhere by calling showInventoryBadge()
-        li.appendChild(span);
-        this.inventoryListEl.appendChild(li);
       });
+
+      // Filter items
+      let filteredItems = this.inventory.items;
+      if(category !== 'all'){
+        filteredItems = this.inventory.items.filter(item => item.type === category);
+      }
+
+      // Render items
+      const listEl = document.getElementById('inventory-list');
+      if(!listEl) return;
+      listEl.innerHTML = '';
+
+      if(filteredItems.length === 0){
+        const emptyMsg = document.createElement('li');
+        emptyMsg.style.gridColumn = '1 / -1';
+        emptyMsg.style.textAlign = 'center';
+        emptyMsg.style.color = 'var(--muted)';
+        emptyMsg.style.padding = '40px';
+        emptyMsg.textContent = `No ${category === 'all' ? '' : category} items in inventory.`;
+        listEl.appendChild(emptyMsg);
+        return;
+      }
+
+      filteredItems.forEach(item => {
+        const li = document.createElement('li');
+        
+        // Item name
+        const nameDiv = document.createElement('div');
+        nameDiv.className = 'inventory-item-name';
+        nameDiv.textContent = item.name;
+        
+        if(item.equipped){
+          const equippedBadge = document.createElement('span');
+          equippedBadge.className = 'inventory-item-equipped';
+          equippedBadge.textContent = 'Equipped';
+          nameDiv.appendChild(equippedBadge);
+        }
+        
+        li.appendChild(nameDiv);
+
+        // Quantity
+        if(item.count && item.count > 1){
+          const qtyDiv = document.createElement('div');
+          qtyDiv.className = 'inventory-item-quantity';
+          qtyDiv.innerHTML = `Quantity: <span class="count-badge">x${item.count}</span>`;
+          li.appendChild(qtyDiv);
+        }
+
+        // Click to view details
+        li.addEventListener('click', ()=> this.showItemDetail(item));
+
+        listEl.appendChild(li);
+      });
+    }
+
+    showItemDetail(item){
+      const detailPanel = document.getElementById('item-detail-panel');
+      if(!detailPanel) return;
+
+      // Populate item details
+      const nameEl = document.getElementById('item-detail-name');
+      const descEl = document.getElementById('item-detail-description');
+      const statsEl = document.getElementById('item-detail-stats');
+      const qtyEl = document.getElementById('item-detail-quantity');
+      const actionsEl = document.getElementById('item-detail-actions');
+
+      if(nameEl) nameEl.textContent = item.name;
+      if(descEl) descEl.textContent = item.description || 'No description available.';
+      
+      // Stats
+      let statsText = '';
+      if(item.type === 'equipment'){
+        if(item.atk) statsText += `ATK: +${item.atk} `;
+        if(item.def) statsText += `DEF: +${item.def} `;
+        if(item.slot) statsText += `\nSlot: ${item.slot}`;
+      }
+      if(item.heal) statsText += `Heals: ${item.heal} HP`;
+      if(statsEl) statsEl.textContent = statsText;
+
+      // Quantity
+      if(qtyEl){
+        if(item.count && item.count > 1){
+          qtyEl.textContent = `Quantity: ${item.count}`;
+          qtyEl.style.display = 'block';
+        } else {
+          qtyEl.style.display = 'none';
+        }
+      }
+
+      // Dynamic action buttons
+      if(actionsEl){
+        actionsEl.innerHTML = '';
+
+        // Use button for consumables
+        if(item.type === 'consumable'){
+          const useBtn = document.createElement('button');
+          useBtn.textContent = '✓ Use';
+          useBtn.addEventListener('click', ()=>{
+            const res = this.inventory.useItem(item.id, this.player);
+            if(res.used){ 
+              if(res.heal) this.log(`Used ${item.name}. Restored ${res.heal} HP.`); 
+              if(res.cured) this.log(`Used ${item.name}. Cured status effects.`);
+            } else {
+              this.log(`Could not use ${item.name}.`);
+            }
+            this.closeItemDetail();
+            this.filterAndRenderInventory(this.currentInventoryCategory);
+            this.updateUI();
+          });
+          actionsEl.appendChild(useBtn);
+        }
+
+        // Equip/Unequip for equipment
+        if(item.type === 'equipment'){
+          const eqBtn = document.createElement('button');
+          eqBtn.textContent = item.equipped ? '⊗ Unequip' : '⊕ Equip';
+          eqBtn.addEventListener('click', ()=>{
+            if(item.equipped){
+              this.inventory.unequipItem(item.id, this.player);
+              this.log(`Unequipped ${item.name}.`);
+            } else {
+              this.inventory.equipItem(item.id, this.player);
+              this.log(`Equipped ${item.name}.`);
+            }
+            this.closeItemDetail();
+            this.filterAndRenderInventory(this.currentInventoryCategory);
+            this.updateUI();
+          });
+          actionsEl.appendChild(eqBtn);
+        }
+
+        // Drop button
+        const dropBtn = document.createElement('button');
+        dropBtn.className = 'btn-danger';
+        dropBtn.textContent = '🗑 Drop';
+        dropBtn.addEventListener('click', ()=>{
+          if(confirm(`Drop ${item.name}?`)){
+            if(item.equipped) this.inventory.unequipItem(item.id, this.player);
+            this.inventory.removeItem(item.id, item.count || 1);
+            this.log(`Dropped ${item.name}.`);
+            this.closeItemDetail();
+            this.filterAndRenderInventory(this.currentInventoryCategory);
+            this.updateUI();
+          }
+        });
+        actionsEl.appendChild(dropBtn);
+      }
+
+      // Show the detail panel
+      detailPanel.style.display = 'block';
+    }
+
+    closeItemDetail(){
+      const detailPanel = document.getElementById('item-detail-panel');
+      if(detailPanel) detailPanel.style.display = 'none';
+    }
+
+    // Legacy updateInventoryUI for backward compatibility
+    updateInventoryUI(){
+      // Just call the new filtering function if panel is open
+      const panel = document.getElementById('inventory-panel');
+      if(panel && panel.style.display !== 'none'){
+        this.filterAndRenderInventory(this.currentInventoryCategory);
+      }
     }
 
     // Equipment preview helpers
@@ -1670,7 +1827,7 @@ class Game {
             } else {
               const res = (Math.random()<0.6) ? 'herb' : 'nothing';
               if(res==='herb'){
-          const herb = this.inventory.addItem({name:'Healing Herb',type:'consumable',heal:20});
+          const herb = this.inventory.addItem({name:'Healing Herb',type:'consumable',heal:20,description:'A common herb that restores 20 HP when consumed.'});
           this.logEvent('loot', 'Found a Healing Herb', 'Added to inventory');
           this.showInventoryBadge();
                 this.progressQuests('gather',1);
@@ -1701,7 +1858,7 @@ class Game {
             const res = (Math.random()<0.6) ? 'herb' : 'nothing';
             if(res==='herb'){
               // add herb to inventory
-              const herb = this.inventory.addItem({name:'Healing Herb',type:'consumable',heal:20});
+              const herb = this.inventory.addItem({name:'Healing Herb',type:'consumable',heal:20,description:'A common herb that restores 20 HP when consumed.'});
               this.log('You found a healing herb and placed it in your inventory.');
               this.progressQuests('gather',1);
             } else this.log('Nothing found this time.');
@@ -1901,6 +2058,13 @@ class Game {
         this.currentEnemy = null;
         this.busy = false;
         this.playerTurn = true; // reset for next combat
+        
+        // Reset combo after battle ends
+        if(this.player.comboCount > 0) {
+          this.log(`Combat ended. Combo streak: ${this.player.comboCount}`);
+          this.player.comboCount = 0;
+        }
+        
         // Re-enable non-combat controls after fight
         this.setNonCombatControlsDisabled(false);
         this.setCombatButtonsEnabled(false);
@@ -1958,15 +2122,16 @@ class Game {
       
       // Small delay for animation
       setTimeout(() => {
-        // Combo bonus system
+        // Combo bonus system with cap at 10
+        const effectiveCombo = Math.min(p.comboCount || 0, 10); // Cap combo effects at 10
         let comboMultiplier = 1.0;
         let guaranteedCrit = false;
-        if(p.comboCount >= 10) {
-          comboMultiplier = 1.5; // +50% at 10+ combo
-        } else if(p.comboCount >= 5) {
+        if(effectiveCombo >= 10) {
+          comboMultiplier = 1.5; // +50% at 10 combo (max)
+        } else if(effectiveCombo >= 5) {
           comboMultiplier = 1.25; // +25% at 5+ combo
           guaranteedCrit = true;
-        } else if(p.comboCount >= 3) {
+        } else if(effectiveCombo >= 3) {
           comboMultiplier = 1.1; // +10% at 3+ combo
         }
         
@@ -1990,12 +2155,17 @@ class Game {
         this.animateHit('enemy');
         this.showDamageNumber(playerDamage, 'enemy', isCrit, false, false);
         
-        // Increment combo on successful hit
+        // Increment combo on successful hit (cap at 10 for bonus, but track higher for display)
         p.comboCount = (p.comboCount || 0) + 1;
         if(p.comboCount > (p.maxCombo || 0)) p.maxCombo = p.comboCount;
         
-        // Display combo counter if >= 3
-        const comboText = p.comboCount >= 3 ? ` ×${p.comboCount} COMBO!` : '';
+        // Display combo counter if >= 3, show MAX at 10+
+        let comboText = '';
+        if(p.comboCount >= 10) {
+          comboText = ` ×${p.comboCount} COMBO! (MAX BONUS)`;
+        } else if(p.comboCount >= 3) {
+          comboText = ` ×${p.comboCount} COMBO!`;
+        }
         const detail = `Attack: ${playerDamageRaw} - DEF: ${enemy.def||0}${comboMultiplier > 1 ? ` (×${comboMultiplier} combo)` : ''}`;
         
         if(isCrit){
@@ -2332,7 +2502,7 @@ class Game {
       // if miniboss, drop a Boss Key for current floor
       if(enemy.isMiniBoss){
         const f = enemy.floor || p.floor;
-        const key = this.inventory.addItem({name:`Boss Key (Floor ${f})`, type:'quest', floor:f});
+        const key = this.inventory.addItem({name:`Boss Key (Floor ${f})`, type:'quest', floor:f, description:`A special key that grants access to the Floor ${f} Boss Arena. Use this to challenge the floor boss.`});
         this.logEvent('info', `You found a ${key.name}! Return to town to face the Boss Arena.`);
         this.showInventoryBadge();
       }
@@ -2347,7 +2517,7 @@ class Game {
   let dropBase = 0.35 + ((p.luck||0)+luckBonus2)*0.02 + (p.archetype==='sage' ? (ARCHETYPES.sage.passives.dropBonus || 0) : 0);
       if(enemy.rareDropBoost) dropBase = Math.min(0.95, dropBase + 0.2);
       if(res && Math.random() < dropBase){
-        const dropped = this.inventory.addItem({name:res,type:'resource'}, 1);
+        const dropped = this.inventory.addItem({name:res,type:'resource',description:`A crafting material gathered from defeated enemies. Can be used for equipment upgrades.`}, 1);
         this.logEvent('loot', `Found resource: ${dropped.name}`);
         this.showInventoryBadge();
       }
@@ -2367,7 +2537,7 @@ class Game {
       }
       // Field boss rare drop
       if(enemy.isBoss && !enemy.arena){
-        const drop = this.inventory.addItem({name:'Lucky Pendant', type:'equipment', slot:'Accessory', def:1, luck:1});
+        const drop = this.inventory.addItem({name:'Lucky Pendant', type:'equipment', slot:'Accessory', def:1, luck:1, description:'A rare pendant dropped by field bosses. Increases LUCK and provides minor defense.'});
         this.logEvent('loot', `Rare drop: ${drop.name} (+1 LUCK, +1 DEF)`);
         this.showInventoryBadge();
         this.showDropFlair('epic');
@@ -3197,9 +3367,16 @@ class Game {
 
     // Enable/disable all combat action buttons
     setCombatButtonsEnabled(enabled){
-      const container = document.getElementById('combat-actions');
-      if(!container) return;
-      Array.from(container.querySelectorAll('button')).forEach(b=> b.disabled = !enabled);
+      // Handle both old and new combat action containers
+      const oldContainer = document.getElementById('combat-actions');
+      const newContainer = document.getElementById('player-action-menu');
+      
+      if(oldContainer){
+        Array.from(oldContainer.querySelectorAll('button')).forEach(b=> b.disabled = !enabled);
+      }
+      if(newContainer){
+        Array.from(newContainer.querySelectorAll('button')).forEach(b=> b.disabled = !enabled);
+      }
     }
 
     // ---------- Daily goals & streak ----------

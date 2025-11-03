@@ -856,6 +856,11 @@
   /* GPU acceleration */
   will-change: transform;
   transform: translateZ(0);
+  /* Ensure touch events work on mobile */
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: rgba(79, 195, 247, 0.3);
+  user-select: none;
+  -webkit-user-select: none;
 }
 
 .action-btn:hover:not(:disabled) {
