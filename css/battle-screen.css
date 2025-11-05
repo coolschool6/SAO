@@ -1273,7 +1273,7 @@
   
   .player-display,
   .enemy-display {
-    bottom: 180px;
+    bottom: 260px;
     gap: 8px;
   }
   
@@ -1326,7 +1326,7 @@
   }
   
   .combo-meter {
-    bottom: 160px;
+    bottom: 240px;
     right: 50%;
     transform: translateX(50%);
     padding: 6px 14px;
@@ -1340,28 +1340,35 @@
     font-size: 18px;
   }
   
+  /* Improved mobile action menu - raised higher and more prominent */
   .player-action-menu {
-    bottom: 10px;
-    gap: 8px;
-    padding: 12px 10px;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: calc(100% - 20px);
+    max-width: 600px;
+    gap: 10px;
+    padding: 16px 12px;
     flex-wrap: wrap;
     justify-content: center;
   }
   
   .action-btn {
-    min-width: 60px;
-    padding: 10px 8px;
-    gap: 3px;
-    flex: 0 1 calc(20% - 8px);
+    min-width: 70px;
+    padding: 14px 10px;
+    gap: 4px;
+    flex: 0 1 calc(20% - 10px);
+    border-radius: 10px;
   }
   
   .btn-icon {
-    font-size: 20px;
+    font-size: 22px;
   }
   
   .btn-text {
-    font-size: 9px;
+    font-size: 9.5px;
     letter-spacing: 0.3px;
+    font-weight: 600;
   }
   
   .turn-indicator-new {
@@ -1407,7 +1414,7 @@
   
   .player-display,
   .enemy-display {
-    bottom: 160px;
+    bottom: 240px;
     gap: 6px;
   }
   
@@ -1464,7 +1471,7 @@
   }
   
   .combo-meter {
-    bottom: 130px;
+    bottom: 220px;
     padding: 6px 14px;
   }
   
@@ -1476,26 +1483,34 @@
     font-size: 16px;
   }
   
+  /* Improved mobile action menu for small screens */
   .player-action-menu {
-    bottom: 8px;
-    gap: 6px;
-    padding: 10px 8px;
+    bottom: 15px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: calc(100% - 16px);
+    max-width: 500px;
+    gap: 8px;
+    padding: 14px 10px;
   }
   
   .action-btn {
-    min-width: 50px;
-    padding: 8px 6px;
-    gap: 2px;
-    flex: 0 1 calc(20% - 6px);
+    min-width: 64px;
+    padding: 12px 8px;
+    gap: 3px;
+    flex: 0 1 calc(20% - 8px);
+    border-radius: 8px;
+    border-width: 2px;
   }
   
   .btn-icon {
-    font-size: 18px;
+    font-size: 20px;
   }
   
   .btn-text {
-    font-size: 8px;
+    font-size: 9px;
     letter-spacing: 0.2px;
+    font-weight: 600;
   }
   
   .turn-indicator-new {
@@ -1658,7 +1673,7 @@
 @media (max-width: 768px) and (orientation: landscape) {
   .player-display,
   .enemy-display {
-    bottom: 120px;
+    bottom: 160px;
   }
   
   .player-character-art,
@@ -1678,19 +1693,31 @@
   }
   
   .combo-meter {
-    bottom: 110px;
+    bottom: 140px;
     padding: 6px 14px;
   }
   
+  /* Better action menu positioning for landscape */
   .player-action-menu {
-    bottom: 8px;
-    padding: 10px 15px;
+    bottom: 12px;
+    padding: 12px 15px;
     gap: 10px;
+    width: calc(100% - 30px);
+    max-width: 700px;
   }
   
   .action-btn {
-    min-width: 65px;
-    padding: 10px 10px;
+    min-width: 70px;
+    padding: 12px 10px;
+    flex: 0 1 calc(20% - 10px);
+  }
+  
+  .btn-icon {
+    font-size: 20px;
+  }
+  
+  .btn-text {
+    font-size: 9px;
   }
   
   .turn-text-new {
