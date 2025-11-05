@@ -1248,3 +1248,60 @@ body.screen-shake{
     min-width: unset;
   }
 }
+
+/* ==========================================
+   MOBILE RESTART BUTTON
+   ========================================== */
+.mobile-restart-btn {
+  position: fixed;
+  left: calc(16px + env(safe-area-inset-left));
+  bottom: 120px;
+  z-index: 150;
+  display: none; /* Only show on mobile */
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  padding: 0;
+  background: linear-gradient(135deg, rgba(255, 80, 80, 0.9), rgba(255, 40, 40, 0.85));
+  border: 2px solid rgba(255, 100, 100, 0.8);
+  border-radius: 50%;
+  color: #ffffff;
+  font-size: 20px;
+  cursor: pointer;
+  box-shadow: 
+    0 4px 16px rgba(255, 40, 40, 0.5),
+    0 0 20px rgba(255, 80, 80, 0.3);
+  transition: all 0.3s ease;
+  touch-action: manipulation;
+  user-select: none;
+}
+
+.mobile-restart-btn:hover {
+  background: linear-gradient(135deg, rgba(255, 100, 100, 0.95), rgba(255, 60, 60, 0.9));
+  border-color: rgba(255, 120, 120, 0.9);
+  box-shadow: 
+    0 6px 20px rgba(255, 40, 40, 0.6),
+    0 0 30px rgba(255, 80, 80, 0.5);
+  transform: translateY(-2px) rotate(90deg);
+}
+
+.mobile-restart-btn:active {
+  transform: translateY(0) rotate(90deg);
+}
+
+@media (max-width: 768px) {
+  .mobile-restart-btn {
+    display: flex;
+  }
+}
+
+@media (max-width: 480px) {
+  .mobile-restart-btn {
+    left: calc(12px + env(safe-area-inset-left));
+    bottom: calc(140px + env(safe-area-inset-bottom));
+    width: 44px;
+    height: 44px;
+    font-size: 18px;
+  }
+}

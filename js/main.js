@@ -309,6 +309,9 @@ class Game {
       document.getElementById('btn-save').addEventListener('click', ()=>this.save());
       document.getElementById('btn-load').addEventListener('click', ()=>this.load());
       document.getElementById('btn-new-game').addEventListener('click', ()=>this.startNewGame());
+      // Mobile restart button
+      const mobileRestartBtn = document.getElementById('mobile-restart-btn');
+      if(mobileRestartBtn) mobileRestartBtn.addEventListener('click', ()=>this.startNewGame());
       // HUD save button (mobile-friendly)
       const hudSaveBtn = document.getElementById('hud-save-btn');
       if(hudSaveBtn) hudSaveBtn.addEventListener('click', ()=>this.save());
@@ -1988,7 +1991,7 @@ class Game {
             if(found < 0.75){
               // Try an exploration event before spawning the enemy
               if(this.tryExplorationEvent(floor, 'dungeon')){ return; }
-              const enemy = makeEnemy(floor,'dungeon'); enemy.floor = floor;
+              const enemy = makeEnemy(floor,'dungeon', this.player.level); enemy.floor = floor;
                 // attach escort quest flags if escort active
                 const escortQ = (this.player.quests || []).find(q=> q.type === 'escort');
                 if(escortQ){ enemy.escortQuestId = escortQ.id; }
@@ -2017,7 +2020,7 @@ class Game {
           } else if(found < 0.75){
             // Try an exploration event before spawning the enemy
             if(this.tryExplorationEvent(floor, 'field')){ return; }
-            const enemy = makeEnemy(floor,'field'); enemy.floor = floor;
+            const enemy = makeEnemy(floor,'field', this.player.level); enemy.floor = floor;
             // attach escort quest flags if escort active
             const escortQ2 = (this.player.quests || []).find(q=> q.type === 'escort');
             if(escortQ2){ enemy.escortQuestId = escortQ2.id; }
@@ -2124,7 +2127,7 @@ class Game {
               this.hideModal(); this.busy=false; this.setButtonsDisabled(false); this.updateUI();
             } else {
               this.modifyReputation('fae', -1, 'Parley failed');
-              const enemy = makeEnemy(floor, context==='dungeon' ? 'dungeon' : 'field');
+              const enemy = makeEnemy(floor, context==='dungeon' ? 'dungeon' : 'field', this.player.level);
               enemy.floor = floor; enemy.rareDropBoost = true;
               this.hideModal(); 
               this.busy = false; // Reset busy flag before entering combat
@@ -2133,7 +2136,7 @@ class Game {
             }
           }},
           {text:'Fight', action:()=>{
-            const enemy = makeEnemy(floor, context==='dungeon' ? 'dungeon' : 'field');
+            const enemy = makeEnemy(floor, context==='dungeon' ? 'dungeon' : 'field', this.player.level);
             enemy.floor = floor; enemy.rareDropBoost = true;
             this.hideModal(); 
             this.busy = false; // Reset busy flag before entering combat
@@ -2143,7 +2146,7 @@ class Game {
         return true;
       }
       // Default: immediate fight with improved drops
-      const enemy = makeEnemy(floor, context==='dungeon' ? 'dungeon' : 'field');
+  const enemy = makeEnemy(floor, context==='dungeon' ? 'dungeon' : 'field', this.player.level);
       enemy.floor = floor; enemy.rareDropBoost = true;
       this.logEvent('info', 'Ambush! Enemies leap from the shadows!', 'Drops boosted');
       this.fight(enemy);
@@ -3571,9 +3574,17 @@ class Game {
     }
 
     startNewGame() {
-      // Confirm before clearing save
+      // Confirm before clearing save with enhanced mobile-friendly warning
       if(localStorage.getItem(SAVE_KEY)) {
-        const confirmed = confirm('⚠️ Are you sure you want to start a NEW GAME?\n\nThis will DELETE your current save file and cannot be undone!\n\nClick OK to start fresh, or Cancel to keep your current game.');
+        const confirmed = confirm(
+          '⚠️⚠️⚠️ WARNING ⚠️⚠️⚠️\n\n' +
+          'You are about to DELETE your current save!\n\n' +
+          '❌ This action CANNOT be undone!\n' +
+          '❌ All progress will be LOST!\n' +
+          '❌ Your character will be DELETED!\n\n' +
+          '✅ Press OK to start a NEW GAME\n' +
+          '🚫 Press CANCEL to keep playing'
+        );
         if(!confirmed) return;
       }
       

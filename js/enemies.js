@@ -1,18 +1,24 @@
 // Enemy generator using floor definitions; type = 'field' or 'dungeon' or 'boss' or 'fieldboss'
-function makeEnemy(floor, type = 'field'){
+function makeEnemy(floor, type = 'field', playerLevel = 1){
   const def = FLOOR_DEFS[floor] || null;
   const base = Math.max(1, floor);
+  const lvl = Math.max(1, playerLevel||1);
+  const delta = Math.max(0, lvl - base);
+  const hpScale = 1 + (type==='boss' ? 0.25 : type==='fieldboss' ? 0.2 : type==='dungeon' ? 0.18 : 0.12) * delta;
+  const atkScale = 1 + (type==='boss' ? 0.15 : type==='fieldboss' ? 0.12 : type==='dungeon' ? 0.12 : 0.08) * delta;
+  const defBonus = Math.floor((type==='boss' ? 0.6 : type==='fieldboss' ? 0.5 : type==='dungeon' ? 0.4 : 0.25) * delta);
   
   // Field Boss (special rare encounter like Grath)
   if(type === 'fieldboss' && def && def.fieldBoss){
     const fb = def.fieldBoss;
-    const hp = Math.floor((10 + base * fb.hpMul) * (1 + Math.random()*0.1));
+    let hp = Math.floor((10 + base * fb.hpMul) * (1 + Math.random()*0.1));
+    hp = Math.floor(hp * hpScale);
     return {
       name: fb.name,
       hp,
       maxHP: hp,
-      atk: fb.atk,
-      def: fb.def,
+      atk: Math.floor(fb.atk * atkScale),
+      def: (fb.def||0) + defBonus,
       exp: fb.exp,
       gold: fb.gold,
       isFieldBoss: true,
@@ -24,13 +30,14 @@ function makeEnemy(floor, type = 'field'){
   // Labyrinth/Dungeon Boss
   if(type === 'boss' && def && def.boss){
     const b = def.boss;
-    const hp = Math.floor((10 + base * b.hpMul) * (1 + Math.random()*0.08));
+    let hp = Math.floor((10 + base * b.hpMul) * (1 + Math.random()*0.08));
+    hp = Math.floor(hp * hpScale);
     return {
       name: b.name,
       hp,
       maxHP: hp,
-      atk: b.atk,
-      def: b.def,
+      atk: Math.floor(b.atk * atkScale),
+      def: (b.def||0) + defBonus,
       exp: b.exp,
       gold: b.gold,
       isBoss: true,
@@ -56,9 +63,13 @@ function makeEnemy(floor, type = 'field'){
     template = {name:'Field Beast',hpMul:1.0,atkMul:1.0,exp:10,gold:5};
   }
   
-  const hp = Math.max(3, Math.floor((5 + base * template.hpMul) * (1 + Math.random()*0.4)));
-  const atk = Math.max(1, Math.floor((1 + base * template.atkMul) + Math.random()*2));
-  const dex = Math.max(0, Math.floor(base*0.05));
+  let hp = Math.max(3, Math.floor((5 + base * template.hpMul) * (1 + Math.random()*0.4)));
+  let atk = Math.max(1, Math.floor((1 + base * template.atkMul) + Math.random()*2));
+  let dex = Math.max(0, Math.floor(base*0.05));
+  // Apply level-based scaling relative to floor
+  hp = Math.floor(hp * hpScale);
+  atk = Math.floor(atk * atkScale);
+  dex = dex + defBonus;
   const exp = Math.max(1, Math.floor(template.exp + base*2 + Math.random()*8));
   const gold = Math.max(0, Math.floor(template.gold + base*1.2 + Math.random()*6));
   const enemy = {
