@@ -633,7 +633,23 @@ class Game {
   p.finishedOriginalQuestIds = p.finishedOriginalQuestIds || [];
   const acceptedSet = new Set(p.acceptedOriginalQuestIds);
   const finishedSet = new Set(p.finishedOriginalQuestIds);
-  const available = boardQuests.filter(q=> !acceptedSet.has(q.id) && !finishedSet.has(q.id));
+  
+  // Filter available quests:
+  // - Not currently active
+  // - Not finished (unless repeatable)
+  const available = boardQuests.filter(q=> {
+    const isActive = (p.quests||[]).some(aq=> aq.meta && aq.meta.original && aq.meta.original.id === q.id);
+    if(isActive) return false; // Can't accept if already active
+    
+    const isFinished = finishedSet.has(q.id);
+    const isRepeatable = q.isRepeatable === true;
+    
+    // If finished and not repeatable, hide it
+    if(isFinished && !isRepeatable) return false;
+    
+    return true;
+  });
+  
   const rep = p.reputation || {faune:0, fae:0, merchants:0};
   const availHtml = available.map((q,i)=>{
     // check faction requirements
@@ -644,8 +660,9 @@ class Game {
         if(cur < need){ locked = true; lockText = `Locked (need ${k[0].toUpperCase()+k.slice(1)} ${need}+)`; break; }
       }
     }
+    const repeatableBadge = q.isRepeatable ? ' <span style="color:#4fc3f7;font-size:12px">♻ Repeatable</span>' : '';
     const right = locked ? `<span class="muted">${lockText}</span>` : `<button data-board="${i}">Accept</button>`;
-    return `<div style="display:flex;justify-content:space-between;align-items:center;padding:6px"><div><strong>${q.title}</strong><div class="muted">${q.desc}</div></div><div>${right}</div></div>`;
+    return `<div style="display:flex;justify-content:space-between;align-items:center;padding:6px"><div><strong>${q.title}${repeatableBadge}</strong><div class="muted">${q.desc}</div></div><div>${right}</div></div>`;
   }).join('') || '<div class="muted">No available quests.</div>';
       const activeHtml = (this.player.quests || []).map((q,idx)=> `<div style="display:flex;justify-content:space-between;align-items:center;padding:6px"><div><strong>${q.title}</strong><div class="muted">${q.desc}</div><div class="muted">Progress: ${q.progress||0}/${q.target}</div></div><div><button data-abandon="${q.id}">Abandon</button></div></div>`).join('') || '<div class="muted">No active quests.</div>';
       const completedHtml = (this.player.completedQuests || []).map((q,idx)=> `<div style="display:flex;justify-content:space-between;align-items:center;padding:6px"><div><strong>${q.title}</strong><div class="muted">Reward: ${q.reward.xp} XP, ${q.reward.gold} gold</div></div><div><button data-collect="${idx}">Collect</button></div></div>`).join('') || '<div class="muted">No completed quests.</div>';
@@ -689,7 +706,24 @@ class Game {
         const alreadyCompleted = (p.completedQuests||[]).some(q=> q.meta && q.meta.original && q.meta.original.id === base.id);
         const markedAccepted = (p.acceptedOriginalQuestIds||[]).includes(base.id);
         const markedFinished = (p.finishedOriginalQuestIds||[]).includes(base.id);
-        if(alreadyActive || alreadyCompleted || markedAccepted || markedFinished){
+        
+        // Check if quest is repeatable
+        const isRepeatable = base.isRepeatable === true;
+        
+        // Prevent duplicate acceptance
+        if(alreadyActive){
+          this.logEvent('info', 'You already have this quest active. Finish or abandon it first.');
+          return;
+        }
+        
+        // If not repeatable and already completed, prevent re-acceptance
+        if(!isRepeatable && (alreadyCompleted || markedFinished)){
+          this.logEvent('info', 'You already completed this quest.');
+          return;
+        }
+        
+        // If not repeatable and already accepted once, prevent
+        if(!isRepeatable && markedAccepted){
           this.logEvent('info', 'You already took this quest. Finish or abandon it first.');
           return;
         }
@@ -1510,12 +1544,44 @@ class Game {
         filteredItems = this.inventory.items.filter(item => item.type === category);
       }
 
+      // Group duplicate items (by name+type). If any are equipped, mark the group as equipped.
+      const groupedItems = [];
+      const itemMap = new Map();
+
+      filteredItems.forEach(item => {
+        const unitCount = item.count || 1;
+        const key = `${item.name}_${item.type}`;
+        if(itemMap.has(key)){
+          const existing = itemMap.get(key);
+          existing.quantity += unitCount;
+          existing.ids.push(item.id);
+          existing.items.push(item);
+          if(item.equipped) existing.equipped = true;
+        } else {
+          itemMap.set(key, {
+            name: item.name,
+            type: item.type,
+            description: item.description,
+            slot: item.slot,
+            atk: item.atk,
+            def: item.def,
+            heal: item.heal,
+            quantity: unitCount,
+            equipped: !!item.equipped, // any-equipped marker
+            ids: [item.id],
+            items: [item]
+          });
+        }
+      });
+      // Preserve insertion order
+      itemMap.forEach(v=> groupedItems.push(v));
+
       // Render items
       const listEl = document.getElementById('inventory-list');
       if(!listEl) return;
       listEl.innerHTML = '';
 
-      if(filteredItems.length === 0){
+      if(groupedItems.length === 0){
         const emptyMsg = document.createElement('li');
         emptyMsg.style.gridColumn = '1 / -1';
         emptyMsg.style.textAlign = 'center';
@@ -1526,13 +1592,21 @@ class Game {
         return;
       }
 
-      filteredItems.forEach(item => {
+      groupedItems.forEach(item => {
         const li = document.createElement('li');
         
         // Item name
         const nameDiv = document.createElement('div');
         nameDiv.className = 'inventory-item-name';
         nameDiv.textContent = item.name;
+        
+        // Show quantity badge if > 1 (but hide for quest items to reduce clutter)
+        if(item.quantity > 1 && item.type !== 'quest'){
+          const qtyBadge = document.createElement('span');
+          qtyBadge.className = 'count-badge';
+          qtyBadge.textContent = `x${item.quantity}`;
+          nameDiv.appendChild(qtyBadge);
+        }
         
         if(item.equipped){
           const equippedBadge = document.createElement('span');
@@ -1543,19 +1617,115 @@ class Game {
         
         li.appendChild(nameDiv);
 
-        // Quantity
-        if(item.count && item.count > 1){
-          const qtyDiv = document.createElement('div');
-          qtyDiv.className = 'inventory-item-quantity';
-          qtyDiv.innerHTML = `Quantity: <span class="count-badge">x${item.count}</span>`;
-          li.appendChild(qtyDiv);
-        }
-
-        // Click to view details
-        li.addEventListener('click', ()=> this.showItemDetail(item));
+        // Click to view details (group-aware)
+        li.addEventListener('click', ()=> this.showItemDetailGrouped(item));
 
         listEl.appendChild(li);
       });
+    }
+
+    // Show details for a grouped item (name+type group)
+    showItemDetailGrouped(group){
+      const detailPanel = document.getElementById('item-detail-panel');
+      if(!detailPanel) return;
+
+      const rep = group.items[0]; // representative
+      const nameEl = document.getElementById('item-detail-name');
+      const descEl = document.getElementById('item-detail-description');
+      const statsEl = document.getElementById('item-detail-stats');
+      const qtyEl = document.getElementById('item-detail-quantity');
+      const actionsEl = document.getElementById('item-detail-actions');
+
+      if(nameEl) nameEl.textContent = group.name;
+      if(descEl) descEl.textContent = rep.description || 'No description available.';
+
+      // Stats
+      let statsText = '';
+      if(group.type === 'equipment'){
+        if(rep.atk) statsText += `ATK: +${rep.atk} `;
+        if(rep.def) statsText += `DEF: +${rep.def} `;
+        if(rep.slot) statsText += `\nSlot: ${rep.slot}`;
+      }
+      if(rep.heal) statsText += `Heals: ${rep.heal} HP`;
+      if(statsEl) statsEl.textContent = statsText;
+
+      if(qtyEl){
+        if(group.quantity > 1 && group.type !== 'quest'){
+          qtyEl.textContent = `Quantity: ${group.quantity}`;
+          qtyEl.style.display = 'block';
+        } else {
+          qtyEl.style.display = 'none';
+        }
+      }
+
+      if(actionsEl){
+        actionsEl.innerHTML = '';
+
+        // Use button for consumables/resources: consume one from any stack
+        if(group.type === 'consumable' || group.type === 'resource'){
+          const useBtn = document.createElement('button');
+          useBtn.textContent = group.type === 'consumable' ? '✓ Use' : '✓ Use/Apply';
+          useBtn.addEventListener('click', ()=>{
+            // pick first matching id
+            const target = group.items.find(i=> true);
+            if(target.type === 'consumable'){
+              const res = this.inventory.useItem(target.id, this.player);
+              if(res.used){
+                if(res.heal) this.log(`Used ${group.name}. Restored ${res.heal} HP.`);
+                if(res.cured) this.log(`Used ${group.name}. Cured status effects.`);
+              } else {
+                this.log(`Could not use ${group.name}.`);
+              }
+            } else {
+              // For resources, no default use — just feedback
+              this.log(`Nothing to use for ${group.name}.`);
+            }
+            this.closeItemDetail();
+            this.filterAndRenderInventory(this.currentInventoryCategory);
+            this.updateUI();
+          });
+          actionsEl.appendChild(useBtn);
+        }
+
+        // Equip/Unequip for equipment on one instance from the group
+        if(group.type === 'equipment'){
+          const eqBtn = document.createElement('button');
+          eqBtn.textContent = group.equipped ? '⊗ Unequip' : '⊕ Equip';
+          eqBtn.addEventListener('click', ()=>{
+            if(group.equipped){
+              const equippedItem = group.items.find(i=> i.equipped);
+              if(equippedItem){ this.inventory.unequipItem(equippedItem.id, this.player); this.log(`Unequipped ${group.name}.`); }
+            } else {
+              const available = group.items.find(i=> !i.equipped);
+              if(available){ this.inventory.equipItem(available.id, this.player); this.log(`Equipped ${group.name}.`); }
+            }
+            this.closeItemDetail();
+            this.filterAndRenderInventory(this.currentInventoryCategory);
+            this.updateUI();
+          });
+          actionsEl.appendChild(eqBtn);
+        }
+
+        // Drop one from the group
+        const dropBtn = document.createElement('button');
+        dropBtn.className = 'btn-danger';
+        dropBtn.textContent = '🗑 Drop';
+        dropBtn.addEventListener('click', ()=>{
+          const target = group.items.find(i=> !i.equipped) || group.items[0];
+          if(!target) { this.log('No item to drop.'); return; }
+          if(confirm(`Drop ${group.name}?`)){
+            if(target.equipped) this.inventory.unequipItem(target.id, this.player);
+            this.inventory.removeItem(target.id, 1);
+            this.log(`Dropped ${group.name}.`);
+            this.closeItemDetail();
+            this.filterAndRenderInventory(this.currentInventoryCategory);
+            this.updateUI();
+          }
+        });
+        actionsEl.appendChild(dropBtn);
+      }
+
+      detailPanel.style.display = 'block';
     }
 
     showItemDetail(item){
@@ -2499,12 +2669,18 @@ class Game {
       if(enemy.isBoss) p.bossKills = (p.bossKills || 0) + 1;
       if(enemy.fieldBoss) p.fieldBosses = (p.fieldBosses || 0) + 1;
       
-      // if miniboss, drop a Boss Key for current floor
+      // if miniboss, drop a Boss Key for current floor (but only if you don't already have it)
       if(enemy.isMiniBoss){
         const f = enemy.floor || p.floor;
-        const key = this.inventory.addItem({name:`Boss Key (Floor ${f})`, type:'quest', floor:f, description:`A special key that grants access to the Floor ${f} Boss Arena. Use this to challenge the floor boss.`});
-        this.logEvent('info', `You found a ${key.name}! Return to town to face the Boss Arena.`);
-        this.showInventoryBadge();
+        const keyName = `Boss Key (Floor ${f})`;
+        const alreadyHasKey = this.inventory.items.some(i=> i.type==='quest' && i.name === keyName);
+        if(!alreadyHasKey){
+          const key = this.inventory.addItem({name:keyName, type:'quest', floor:f, description:`A special key that grants access to the Floor ${f} Boss Arena. Use this to challenge the floor boss.`});
+          this.logEvent('info', `You found a ${key.name}! Return to town to face the Boss Arena.`);
+          this.showInventoryBadge();
+        } else {
+          this.logEvent('info', `You already carry the ${keyName}.`);
+        }
       }
       // if this enemy was part of an escort quest, progress that quest
       if(enemy.escortQuestId){
@@ -2678,7 +2854,19 @@ class Game {
             // mark complete and move to completedQuests (player must collect rewards at the quest board)
             completed.push(q.id);
             p.completedQuests = p.completedQuests || [];
-            p.completedQuests.push({id:q.id,title:q.title, reward:q.reward, meta:q.meta || {}});
+            // Ensure we preserve original quest linkage for legacy NPC quests without meta
+            const original = (q.meta && q.meta.original) || { id: (q.id && q.id.includes('_')) ? q.id.split('_')[0] : q.id, isRepeatable: false };
+            const completedEntry = {id:q.id,title:q.title, reward:q.reward, meta: Object.assign({}, q.meta || {}, { original }) };
+            p.completedQuests.push(completedEntry);
+            
+            // Mark quest as finished if not repeatable (default non-repeatable for legacy quests)
+            if(original && original.isRepeatable === false){
+              p.finishedOriginalQuestIds = p.finishedOriginalQuestIds || [];
+              if(original.id && !p.finishedOriginalQuestIds.includes(original.id)){
+                p.finishedOriginalQuestIds.push(original.id);
+              }
+            }
+            
             this.log(`Quest complete: ${q.title}. Return to the Quest Board to collect your reward.`);
           }
         }
@@ -2964,16 +3152,44 @@ class Game {
 
     showNPCQuests(npcIndex){
       const npc = this.npcs[npcIndex];
+      const p = this.player;
       // combine NPC quests with floor-specific quests (if any)
-      const floorDef = FLOOR_DEFS[this.player.floor] || null;
+      const floorDef = FLOOR_DEFS[p.floor] || null;
       const floorQuests = floorDef && floorDef.quests ? floorDef.quests : [];
       const combined = npc.quests.concat(floorQuests);
-      // filter out quests already accepted by id prefix
-      const already = (this.player.quests || []).map(q=>q.id.split('_')[0]);
-      const visible = combined.filter(q=> !already.includes(q.id));
+
+      // Build acceptance/finished sets for non-repeatable logic
+      p.acceptedOriginalQuestIds = p.acceptedOriginalQuestIds || [];
+      p.finishedOriginalQuestIds = p.finishedOriginalQuestIds || [];
+      const acceptedSet = new Set(p.acceptedOriginalQuestIds);
+      const finishedSet = new Set(p.finishedOriginalQuestIds);
+
+      // Determine active prefixes (legacy) and meta-based matches
+      const activePrefixes = (p.quests || []).map(q=> q.id.split('_')[0]);
+
+      // Visible quests honor repeatability and acceptance/completion state
+      const visible = combined.filter(base => {
+        const isRepeatable = base.isRepeatable === true;
+        const alreadyActive = (p.quests||[]).some(q => (q.meta && q.meta.original && q.meta.original.id === base.id) || q.id.startsWith(base.id + '_'));
+        if(alreadyActive) return false;
+
+        if(!isRepeatable){
+          if(acceptedSet.has(base.id)) return false;
+          if(finishedSet.has(base.id)) return false;
+          // Also hide if a completed quest without meta exists using legacy id prefix
+          const completedLegacy = (p.completedQuests||[]).some(c => (c.meta && c.meta.original && c.meta.original.id === base.id) || c.id.startsWith(base.id + '_'));
+          if(completedLegacy) return false;
+        }
+        // Legacy active prefix guard (extra safety)
+        if(activePrefixes.includes(base.id)) return false;
+        return true;
+      });
+
       const qHtml = visible.map((q,i)=>{
-        return `<div class="quest-item" data-idx="${i}"><strong>${q.title}</strong><div class="muted">${q.desc}</div><div class="muted">Reward: ${q.reward.xp} XP, ${q.reward.gold} gold</div></div>`;
+        const repeatableBadge = q.isRepeatable ? ' <span style="color:#4fc3f7;font-size:12px">♻ Repeatable</span>' : '';
+        return `<div class="quest-item" data-idx="${i}"><strong>${q.title}${repeatableBadge}</strong><div class="muted">${q.desc}</div><div class="muted">Reward: ${q.reward.xp} XP, ${q.reward.gold} gold</div></div>`;
       }).join('') || '<div class="muted">No available quests.</div>';
+
       this.showModal(`${npc.name} — Quests`, `<div style="display:flex;flex-direction:column;gap:8px">${qHtml}</div>`, [
         {text:'Back',action:()=> this.openNPCDialog()},
         {text:'Close',action:()=> this.hideModal()}
@@ -2983,10 +3199,28 @@ class Game {
         el.style.cursor='pointer';
         el.addEventListener('click', ()=>{
           const qIdx = parseInt(el.getAttribute('data-idx'));
-          const questToAdd = Object.assign({}, visible[qIdx]);
-          questToAdd.id = questToAdd.id + '_' + Date.now();
-          this.player.quests.push({id:questToAdd.id,title:questToAdd.title,desc:questToAdd.desc,type:questToAdd.type,target:questToAdd.target,progress:0,reward:questToAdd.reward});
-          this.log(`Accepted quest: ${questToAdd.title}`);
+          const base = visible[qIdx]; if(!base) return;
+
+          // Guard again on click (race conditions or double taps)
+          const isRepeatable = base.isRepeatable === true;
+          const alreadyActive = (p.quests||[]).some(q => (q.meta && q.meta.original && q.meta.original.id === base.id) || q.id.startsWith(base.id + '_'));
+          const alreadyCompleted = (p.completedQuests||[]).some(q => (q.meta && q.meta.original && q.meta.original.id === base.id));
+          if(alreadyActive){ this.logEvent('info', 'You already have this quest active.'); return; }
+          if(!isRepeatable && (acceptedSet.has(base.id) || finishedSet.has(base.id) || alreadyCompleted)){
+            this.logEvent('info', 'This quest cannot be accepted again.');
+            return;
+          }
+
+          const raw = Object.assign({}, base); raw.id = raw.id + '_' + Date.now();
+          const pushQ = {id:raw.id,title:raw.title,desc:raw.desc,type:raw.type,target:raw.target,progress:0,reward:raw.reward,meta:{original:base}};
+          if(raw.type === 'escort'){
+            pushQ.meta.remaining = raw.target;
+          }
+          this.player.quests.push(pushQ);
+          if(!isRepeatable && base.id){
+            if(!p.acceptedOriginalQuestIds.includes(base.id)) p.acceptedOriginalQuestIds.push(base.id);
+          }
+          this.log(`Accepted quest: ${pushQ.title}`);
           this.hideModal();
           this.updateUI();
         });

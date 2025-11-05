@@ -42,15 +42,15 @@ function makeEnemy(floor, type = 'field'){
   // pick a template from the floor or fallback
   let template;
   if(def && def.enemies && def.enemies.length){
-    // In dungeons, enemies are slightly stronger
+    // In dungeons, enemies are significantly stronger
     template = def.enemies[Math.floor(Math.random()*def.enemies.length)];
     if(type === 'dungeon'){
-      // Dungeon enemies get a buff
+      // Dungeon enemies get a major buff
       template = Object.assign({}, template);
-      template.hpMul = (template.hpMul || 1.0) * 1.3;
-      template.atkMul = (template.atkMul || 1.0) * 1.2;
-      template.exp = Math.floor((template.exp || 10) * 1.5);
-      template.gold = Math.floor((template.gold || 5) * 1.3);
+      template.hpMul = (template.hpMul || 1.0) * 1.6; // increased from 1.3
+      template.atkMul = (template.atkMul || 1.0) * 1.4; // increased from 1.2
+      template.exp = Math.floor((template.exp || 10) * 1.8); // increased from 1.5
+      template.gold = Math.floor((template.gold || 5) * 1.5); // increased from 1.3
     }
   } else {
     template = {name:'Field Beast',hpMul:1.0,atkMul:1.0,exp:10,gold:5};

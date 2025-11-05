@@ -849,8 +849,8 @@ body.screen-shake{
 /* Inventory Toggle Button */
 .inventory-toggle-btn {
   position: fixed;
-  top: 20px;
-  right: 20px;
+  right: calc(16px + env(safe-area-inset-right));
+  bottom: 120px; /* float above the command panel */
   z-index: 150;
   display: flex;
   align-items: center;
@@ -1189,8 +1189,8 @@ body.screen-shake{
 /* Mobile Optimization */
 @media (max-width: 768px) {
   .inventory-toggle-btn {
-    top: 10px;
-    right: 10px;
+    right: calc(12px + env(safe-area-inset-right));
+    bottom: calc(140px + env(safe-area-inset-bottom)); /* keep clear of bottom UI on phones */
     padding: 10px 16px;
     font-size: 14px;
   }

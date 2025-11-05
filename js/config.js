@@ -37,17 +37,17 @@ const FLOOR_DEFS = {
     boss: {
       id:'boss1',
       name:'Illfang the Kobold Lord',
-      hpMul:8,
-      atk:6,
-      def:2,
-      exp:240,
-      gold:150,
+      hpMul:12, // increased from 8
+      atk:9, // increased from 6
+      def:3, // increased from 2
+      exp:300, // increased from 240
+      gold:200, // increased from 150
       desc:'The first floor boss, a powerful Kobold Lord who guards the path to Floor 2. Defeated in the labyrinth boss room.'
     },
     quests: [
-      {id:'f1q1',title:'Secret Medicine of the Forest',desc:'Find the secret medicine in the forest area of Stone Valley',type:'gather',target:1,reward:{xp:100,gold:60}},
-      {id:'f1q2',title:'Hunt the Frenzy Boars',desc:'Defeat 10 Frenzy Boars in the plains',type:'kill',target:10,reward:{xp:120,gold:80}},
-      {id:'f1q3',title:'Journey to Tolbana',desc:'Travel to Tolbana, the second largest town on Floor 1',type:'explore',target:1,reward:{xp:80,gold:50}}
+      {id:'f1q1',title:'Secret Medicine of the Forest',desc:'Find the secret medicine in the forest area of Stone Valley',type:'gather',target:1,reward:{xp:100,gold:60},isRepeatable:false},
+      {id:'f1q2',title:'Hunt the Frenzy Boars',desc:'Defeat 10 Frenzy Boars in the plains',type:'kill',target:10,reward:{xp:120,gold:80},isRepeatable:true},
+      {id:'f1q3',title:'Journey to Tolbana',desc:'Travel to Tolbana, the second largest town on Floor 1',type:'explore',target:1,reward:{xp:80,gold:50},isRepeatable:false}
     ]
   },
   2: {
@@ -92,11 +92,11 @@ const FLOOR_DEFS = {
     boss: {
       id:'boss2',
       name:'Armadelon the Crusher',
-      hpMul:12,
-      atk:9,
-      def:5,
-      exp:400,
-      gold:250,
+      hpMul:18, // increased from 12
+      atk:13, // increased from 9
+      def:7, // increased from 5
+      exp:550, // increased from 400
+      gold:350, // increased from 250
       desc:'An insanely large armadillidiidae with near-impregnable defenses and crushing power. Created the spiral ruts of the mountain. NPCs fear "The Day of the Crusher" when it might destroy civilization. Has high DEF that must be overcome.'
     },
     labyrinthMechanic: {
@@ -157,11 +157,11 @@ const FLOOR_DEFS = {
     boss: {
       id:'boss3',
       name:'Blightwood the Maverick',
-      hpMul:14,
-      atk:10,
-      def:5,
-      exp:480,
-      gold:300,
+      hpMul:20, // increased from 14
+      atk:14, // increased from 10
+      def:7, // increased from 5
+      exp:650, // increased from 480
+      gold:420, // increased from 300
       desc:'A thousand-year-old treant awakened by Fae blood magic. Drove King Nyx from the Dark Thicket and crushed all who remained. Guards the boss room in the former Fae castle at the labyrinth center.'
     },
     labyrinthMechanic: {
@@ -181,38 +181,38 @@ const FLOOR_DEFS = {
   4: {
     name:'Sunken Marsh', theme:'swamp', dungeonRooms:5,
     enemies:[{name:'Swamp Leech',hpMul:1.6,atkMul:1.4,exp:18,gold:12},{name:'Bog Troll',hpMul:2.4,atkMul:1.8,exp:30,gold:22}],
-    boss:{id:'boss4',name:'Marsh Colossus',hpMul:12,atk:9,def:4,exp:480,gold:320},
+    boss:{id:'boss4',name:'Marsh Colossus',hpMul:18,atk:13,def:6,exp:680,gold:450}, // increased from hpMul:12, atk:9, def:4
     quests:[{id:'f4q1',title:'Clear the Bog',desc:'Defeat 6 swamp creatures on Floor 4',type:'kill',target:6,reward:{xp:260,gold:180}}]
   },
   5: {
     name:'Scarlet Dunes', theme:'desert', dungeonRooms:6,
     enemies:[{name:'Sand Serpent',hpMul:1.8,atkMul:1.6,exp:22,gold:16},{name:'Dune Raider',hpMul:2.2,atkMul:1.8,exp:28,gold:20}],
-    boss:{id:'boss5',name:'Scourge of Dunes',hpMul:14,atk:11,def:5,exp:640,gold:420},
+    boss:{id:'boss5',name:'Scourge of Dunes',hpMul:22,atk:16,def:8,exp:900,gold:600}, // increased from hpMul:14, atk:11, def:5
     quests:[{id:'f5q1',title:'Find the Oasis Relic',desc:'Recover the Oasis Relic from the dunes (1)',type:'gather',target:1,reward:{xp:320,gold:240}}]
   },
   6: {name:'Frost Reach',theme:'ice',dungeonRooms:6,
     enemies:[{name:'Frostling',hpMul:2.0,atkMul:1.8,exp:30,gold:20},{name:'Ice Wolf',hpMul:2.6,atkMul:2.0,exp:36,gold:26}],
-    boss:{id:'boss6',name:'Glacier Wyrm',hpMul:16,atk:13,def:6,exp:840,gold:560},
+    boss:{id:'boss6',name:'Glacier Wyrm',hpMul:26,atk:19,def:9,exp:1200,gold:800}, // increased from hpMul:16, atk:13, def:6
     quests:[{id:'f6q1',title:'Hunt the Ice Wolves',desc:'Defeat 5 Ice Wolves on Floor 6',type:'kill',target:5,reward:{xp:380,gold:260}}]
   },
   7: {name:'Sky Terrace',theme:'sky',dungeonRooms:4,
     enemies:[{name:'Gale Sprite',hpMul:1.6,atkMul:1.6,exp:26,gold:18},{name:'Storm Drake',hpMul:3.0,atkMul:2.6,exp:48,gold:40}],
-    boss:{id:'boss7',name:'Tempest Drake',hpMul:18,atk:15,def:7,exp:960,gold:680},
+    boss:{id:'boss7',name:'Tempest Drake',hpMul:30,atk:22,def:10,exp:1400,gold:1000}, // increased from hpMul:18, atk:15, def:7
     quests:[{id:'f7q1',title:'Calm the Winds',desc:'Defeat 3 Storm Drakes patrolling the terrace',type:'kill',target:3,reward:{xp:420,gold:320}}]
   },
   8: {name:'Ember Hollow',theme:'volcano',dungeonRooms:7,
     enemies:[{name:'Lava Imp',hpMul:2.2,atkMul:2.0,exp:34,gold:24},{name:'Magma Hound',hpMul:3.2,atkMul:2.8,exp:54,gold:44}],
-    boss:{id:'boss8',name:'Flame Sovereign',hpMul:20,atk:18,def:8,exp:1200,gold:900},
+    boss:{id:'boss8',name:'Flame Sovereign',hpMul:35,atk:26,def:12,exp:1800,gold:1300}, // increased from hpMul:20, atk:18, def:8
     quests:[{id:'f8q1',title:'Quench the Flame',desc:'Gather 4 Cooling Stones from Ember Hollow',type:'gather',target:4,reward:{xp:520,gold:360}}]
   },
   9: {name:'Abyssal Reach',theme:'abyss',dungeonRooms:8,
     enemies:[{name:'Abyss Crawler',hpMul:2.8,atkMul:2.4,exp:44,gold:32},{name:'Void Wraith',hpMul:3.8,atkMul:3.0,exp:64,gold:50}],
-    boss:{id:'boss9',name:'Abyssal Sovereign',hpMul:24,atk:20,def:10,exp:1600,gold:1200},
+    boss:{id:'boss9',name:'Abyssal Sovereign',hpMul:42,atk:30,def:14,exp:2400,gold:1800}, // increased from hpMul:24, atk:20, def:10
     quests:[{id:'f9q1',title:'Purge the Depths',desc:'Defeat 7 Abyssal creatures on Floor 9',type:'kill',target:7,reward:{xp:720,gold:520}}]
   },
   10: {name:'Crystal Palace',theme:'crystal',dungeonRooms:10,
     enemies:[{name:'Shardling',hpMul:3.0,atkMul:2.8,exp:56,gold:44},{name:'Prism Knight',hpMul:4.2,atkMul:3.6,exp:88,gold:72}],
-    boss:{id:'boss10',name:'Crystal Matriarch',hpMul:30,atk:24,def:12,exp:2200,gold:1800},
+    boss:{id:'boss10',name:'Crystal Matriarch',hpMul:50,atk:36,def:16,exp:3200,gold:2600}, // increased from hpMul:30, atk:24, def:12
     quests:[{id:'f10q1',title:'Claim the Crystal Heart',desc:'Obtain the Crystal Heart from the palace (1)',type:'gather',target:1,reward:{xp:1200,gold:900}}]
   }
 };
